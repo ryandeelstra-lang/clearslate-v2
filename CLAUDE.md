@@ -10,10 +10,25 @@ its accumulated mistakes behind.
 
 **Mission: get people out of debt.**
 
-> ⚠️ **The focus of v2 is not yet fixed.** The founder described it as "the thing
-> that is going to help people pay off their debt once I have bought it" — that
-> needs pinning down before any code is written. Until it is, treat this file's
-> scope section as open.
+## The v2 thesis
+
+**Use consumer psychology and machine learning to build a debt payoff plan per
+person — treating them like a human being, not a spreadsheet.** Two people with
+identical debt should get different payoff orders, payment sizes, timing, and
+language, because they are different people. The system learns what works for
+each of them.
+
+**Stance (decided):** psychology is used to *help people win at what they
+already want* — never to pressure, shame, or manufacture urgency. This is not
+only an ethics call: the research in `docs/research/findings.md` shows shame
+produces short-term compliance then long-term avoidance, and ~90% of these apps'
+users are gone within 30 days. The empathetic version is the one that retains.
+
+**Allowed:** payday-aligned payments, plans sized to what someone will actually
+sustain, opt-in commitment devices, loss framing about interest *paired with a
+way out*.
+**Never:** shame, breakable streaks, fake urgency, nudging toward debt that
+profits us, or hiding the math behind a recommendation.
 
 ## Where things came from
 
