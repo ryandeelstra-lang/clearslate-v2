@@ -297,6 +297,53 @@ test("underwrite: up-front cost lowers what we can pay", () => {
   );
 });
 
+// Every gap here failed in the direction that makes a bad tape look buyable.
+// A negative cost reads as revenue. Found in adversarial review round 2.
+test("underwrite rejects inputs that would flatter a bad deal", () => {
+  const ok = {
+    faceCents: 100_000_000,
+    accounts: 1_200,
+    priceBps: 300,
+    legalShareBps: LEGAL_SHARE_BPS_VERIFIED,
+  };
+  // Negative costs read as revenue and inflate maxPrice.
+  assert.throws(() => underwrite({ ...ok, upfrontCentsPerAccount: -100 }), /must be >= 0/);
+  assert.throws(() => underwrite({ ...ok, servicingBps: -100 }), /must be >= 0/);
+  assert.throws(() => underwrite({ ...ok, hurdleAnnualBps: -1 }), /must be >= 0/);
+  // Nonsense scalars.
+  assert.throws(() => underwrite({ ...ok, grossRecoveryBps: 0 }), /must be > 0/);
+  assert.throws(() => underwrite({ ...ok, horizonMonths: 0 }), /must be > 0/);
+  assert.throws(() => underwrite({ ...ok, retentionBps: 0 }), /must be > 0/);
+  assert.throws(() => underwrite({ ...ok, faceCents: NaN }), /must be > 0/);
+  // You cannot mail half a validation notice.
+  assert.throws(() => underwrite({ ...ok, accounts: 1_200.7 }), /positive integer/);
+  assert.throws(() => underwrite({ ...ok, accounts: -5 }), /positive integer/);
+});
+
+test("a tape that loses money at zero price is flagged, not thrown", () => {
+  // Tiny balances: per-account up-front cost swamps everything collectable.
+  const r = underwrite({
+    faceCents: 1_000_000, // $10,000 face
+    accounts: 5_000, // avg $2.00 — absurd on purpose
+    priceBps: 0,
+    legalShareBps: LEGAL_SHARE_BPS_VERIFIED,
+  });
+  assert.equal(r.unacquirableAtAnyPrice, true);
+  assert.ok(r.maxPriceCents < 0, "max price is negative — a required subsidy, not a price");
+  assert.equal(r.clearsHurdle, false, "free is still too expensive");
+});
+
+test("a healthy tape is not flagged unacquirable", () => {
+  const r = underwrite({
+    faceCents: 100_000_000,
+    accounts: 400,
+    priceBps: 100,
+    legalShareBps: LEGAL_SHARE_BPS_VERIFIED,
+  });
+  assert.equal(r.unacquirableAtAnyPrice, false);
+  assert.ok(r.maxPriceCents > 0);
+});
+
 test("underwrite rejects invalid input", () => {
   assert.throws(() => underwrite({ faceCents: 0, priceBps: 500, legalShareBps: 4_820 }));
   assert.throws(() => underwrite({ faceCents: 1_000, priceBps: -1, legalShareBps: 4_820 }));

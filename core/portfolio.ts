@@ -200,7 +200,23 @@ export const HURDLE_ANNUAL_BPS = 1002;
  * account ever pays: Reg F §1006.34 validation notice (print + postage) plus
  * pre-contact scrubs (bankruptcy, deceased, SCRA, attorney-represented).
  *
- * PLACEHOLDER pending U6. Not an observed figure.
+ * PLACEHOLDER pending U6, and the weakest input in this model.
+ *
+ * Two independent research passes produced DIFFERENT ranges, recorded rather
+ * than reconciled because neither is authoritative:
+ *
+ *     $1.30 - $2.50   market research (docs/research/notes.md)
+ *     $1.23 - $1.63   adversarial review round 2
+ *
+ * They agree on the mailing half (USPS 2026 First-Class $0.78; print and
+ * fulfilment $0.20-$0.35 at volume, vendor-quoted). They disagree on the
+ * compliance scrubs, and NEITHER could source that component: LexisNexis,
+ * Experian, TransUnion, RNN, BankruptcyWatch and LocateSmarter all quote
+ * privately with nothing public. That half is an estimate.
+ *
+ * 175 sits at or above the top of both ranges, so the model errs conservative.
+ * Deliberate: a too-high cost declines a deal we could have done, a too-low one
+ * buys paper that loses money.
  *
  * ⚠️ THIS IS PER ACCOUNT, NOT PER DOLLAR OF FACE, and that distinction is
  * load-bearing for H3. Because it is a flat per-account charge, its drag in
@@ -323,6 +339,14 @@ export type UnderwriteResult = {
   maxPriceCents: number;
   maxPriceBps: number;
   clearsHurdle: boolean;
+  /**
+   * True when the PV of net inflows does not even cover up-front servicing —
+   * the paper loses money at a price of zero. Reported rather than thrown: a
+   * worthless tape is a real answer you want to see, not an exception to catch.
+   * When true, `maxPriceCents` is negative and is NOT a price. It is the
+   * subsidy the seller would have to pay us to take it.
+   */
+  unacquirableAtAnyPrice: boolean;
 };
 
 /**
@@ -347,10 +371,34 @@ export function underwrite(input: UnderwriteInput): UnderwriteResult {
     hurdleAnnualBps = HURDLE_ANNUAL_BPS,
   } = input;
 
-  if (faceCents <= 0) throw new Error("faceCents must be > 0");
-  if (priceBps < 0) throw new Error("priceBps must be >= 0");
-  if (accounts !== undefined && (!Number.isFinite(accounts) || accounts <= 0)) {
-    throw new Error("accounts must be > 0 when supplied");
+  // Validate every input that can move the answer. A negative cost reads as
+  // revenue and inflates what we would pay — i.e. every gap here fails in the
+  // direction that makes a bad tape look buyable. Adversarial review found
+  // three of these; treat the whole surface as hostile.
+  const positive: Array<[string, number]> = [
+    ["faceCents", faceCents],
+    ["grossRecoveryBps", grossRecoveryBps],
+    ["horizonMonths", horizonMonths],
+    ["retentionBps", retentionBps],
+  ];
+  for (const [name, v] of positive) {
+    if (!Number.isFinite(v) || v <= 0) throw new Error(`${name} must be > 0`);
+  }
+  const nonNegative: Array<[string, number]> = [
+    ["priceBps", priceBps],
+    ["servicingBps", servicingBps],
+    ["upfrontCentsPerAccount", upfrontCentsPerAccount],
+    ["hurdleAnnualBps", hurdleAnnualBps],
+  ];
+  for (const [name, v] of nonNegative) {
+    if (!Number.isFinite(v) || v < 0) throw new Error(`${name} must be >= 0`);
+  }
+  if (accounts !== undefined) {
+    if (!Number.isInteger(accounts) || accounts <= 0) {
+      // Fractional accounts were silently rounded before. You cannot mail half
+      // a validation notice.
+      throw new Error("accounts must be a positive integer");
+    }
   }
   // Refuse to silently drop a cost that dominates small-balance portfolios.
   if (accounts === undefined && upfrontCentsPerAccount > 0) {
@@ -410,5 +458,6 @@ export function underwrite(input: UnderwriteInput): UnderwriteResult {
     maxPriceCents,
     maxPriceBps: Math.round((maxPriceCents * 10_000) / faceCents),
     clearsHurdle: purchasePriceCents <= maxPriceCents,
+    unacquirableAtAnyPrice: maxPriceCents < 0,
   };
 }

@@ -128,6 +128,13 @@ function report(r: UnderwriteResult, opts: { accounts?: number; ratio?: number; 
   }
 
   lines.push("");
+  if (r.unacquirableAtAnyPrice) {
+    lines.push("  VERDICT: UNACQUIRABLE AT ANY PRICE — up-front servicing alone");
+    lines.push(`  exceeds the present value of everything collectable. Free is too`);
+    lines.push(`  expensive; the seller would have to pay ${usd(-r.maxPriceCents)} to place it.`);
+    lines.push("");
+    return lines.join("\n");
+  }
   const verdict = r.clearsHurdle
     ? `  VERDICT: CLEARS — asking price is ${cpd(r.maxPriceBps - Math.round((r.purchasePriceCents * 10_000) / opts.faceCents))}/$1 below our ceiling`
     : `  VERDICT: DOES NOT CLEAR — asking price exceeds our ceiling by ${cpd(Math.round((r.purchasePriceCents * 10_000) / opts.faceCents) - r.maxPriceBps)}/$1`;
