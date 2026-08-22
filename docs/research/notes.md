@@ -52,12 +52,39 @@ Applied throughout. Violating these is how the first two drafts went wrong.
 | PRA legal collection fees | $17.1M | Q1 2026 |
 | PRA legal as share of opex | 31% | Derived |
 | PRA legal as share of collections | 11.9% | Derived |
-| **PRA US legal collections** | **53% of US core cash collections** | Q1 2026 |
+| **PRA US legal collections** | **48.2% of US Core cash collections (FY2025)** — *corrected, was 53%* | [FY2025 10-K](https://www.sec.gov/Archives/edgar/data/1185348/000118534826000006/praa-20251231.htm) |
 | Implied non-litigating cost-to-collect | ~65% | Applied to Encore FY2025 |
 
-**The 53% figure is the single most consequential number found.** Legal is 31%
-of expense and 53% of collections. Any model removing it deletes a large share of
-the denominator to save a small share of the numerator.
+### Legal share of US Core collections — verified from the 10-K, 21 Aug 2026
+
+PRA discloses this directly, split call center/other vs. legal
+([FY2025 10-K](https://www.sec.gov/Archives/edgar/data/1185348/000118534826000006/praa-20251231.htm),
+Supplemental Performance Data, $000s):
+
+| U.S. Core | 2023 | 2024 | 2025 |
+| --- | --- | --- | --- |
+| Call center/other | $418,585 · 61.3% | $460,046 · 55.0% | $519,346 · **51.8%** |
+| **Legal** | $263,954 · **38.7%** | $375,986 · **45.0%** | $482,576 · **48.2%** |
+| Total Core | $682,539 | $836,032 | $1,001,922 |
+
+Europe for contrast: legal is 39.5% of Core there in 2025 — the US is the
+litigious market.
+
+**Two readings, and the second matters more than the first.**
+
+1. **The headline claim survives.** Legal is ~48% of US Core collections against
+   31% of opex. Removing it still deletes roughly half the denominator to save a
+   third of the numerator. Rev. 1's death is unaffected.
+2. **The trend is the real finding: 38.7% → 45.0% → 48.2% in three years.**
+   The incumbent is leaning *harder* into litigation every year, and it is
+   working — US Core collections grew 47% over the same span. This
+   **strengthens** the objection to any non-litigating strategy: the channel a
+   voluntary-only book forfeits is not static, it is the one carrying incumbent
+   growth. Note also that this is the *disclosed* direction of travel, so a
+   projection for 2026 sits above 48.2%, which is the likeliest origin of the
+   erroneous 53%.
+
+See correction #10.
 
 ### Cost of capital
 
@@ -351,7 +378,24 @@ Recorded rather than silently amended, per project rules.
    business, which is likely why it survived unexamined for so long. Rule 6 cuts
    both ways: an error that makes the business look *harder* than it is also
    escapes scrutiny.
-10. **FTC pricing quoted without vintage.** Research output presented the FTC
+10. **The 53% figure — the project's most-cited number — was wrong.** These notes
+    called "PRA US legal collections = 53% of US core cash collections" *"the
+    single most consequential number found"* and cited it to Q1 2026. It is
+    **48.2%** (FY2025), disclosed plainly in PRA's 10-K Supplemental Performance
+    Data. The 53% figure appears in **neither** Q1 2026 primary document — the
+    earnings release nor the full 10-Q — both fetched and searched; PRA does not
+    publish a quarterly channel split at all. Most likely origin: a projection
+    off a rising trend (38.7% → 45.0% → 48.2%), never labelled as one.
+    **Consequences:** (a) the headline argument survives — ~48% is still roughly
+    half of collections against 31% of opex, so rev. 1's death stands; (b) the
+    *trend* is the more important fact and was missed entirely — the incumbent is
+    leaning harder into litigation each year, which **strengthens** the case
+    against a voluntary-only book; (c) the IRR bridge's −2,057bp legal-removal
+    step is built on the wrong input and should be recomputed at L = 48.2%.
+    **Process note:** this number survived six specialist critiques and two plan
+    revisions without anyone opening the 10-K. It was reachable in one HTTP
+    request. *SEC filings outrank everything* only helps if someone fetches one.
+11. **FTC pricing quoted without vintage.** Research output presented the FTC
     study's 4.0¢ average / 7.9¢ (<3yr) / 2.2¢ (6–15yr) as market pricing. The
     contracts studied were signed **July 2006 – June 2009** — 17–20 years old,
     predating the post-2013 rise in paper prices. Reading 4.0¢ as current market

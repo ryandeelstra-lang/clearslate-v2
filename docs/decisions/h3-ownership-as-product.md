@@ -264,13 +264,46 @@ Per `notes.md` source-quality rules, none of these enter that file until sourced
 1. **Small-balance accounts are systematically not litigated and price at a
    discount.** Plausible and load-bearing (U7/U8). Currently reasoning, not
    evidence.
-2. **Match framing outperforms an equivalent flat settlement discount.** The
-   charitable-giving literature (Karlan & List, *AER* 2007) found a 1:1 match
-   raised giving while 2:1 and 3:1 did no better — cited from memory, not read,
-   and it concerns donations rather than debt repayment. This project has twice
-   been burned assuming a behavioural result transfers across populations
-   (Repayment-by-Purchase, round numbers). **Read the paper before relying on
-   it, and treat the transfer argument as the weak link.**
+2. **Match framing outperforms an equivalent flat settlement discount.**
+   **Citation VERIFIED 21 Aug 2026; transfer REJECTED.** Karlan & List
+   ([*AER* 97(5), 2007](https://www.aeaweb.org/articles?id=10.1257%2Faer.97.5.1774);
+   [NBER w12338](https://www.nber.org/papers/w12338)) is exactly as cited —
+   >50,000 prior donors, ratios of $1:$1 / $2:$1 / $3:$1, the match raised both
+   revenue per solicitation and response rate, and larger ratios "had no
+   additional impact." **But the mechanism does not carry to H3, and the specific
+   "1:1 is enough" conclusion is probably wrong here.**
+
+   **Why the mechanism does not transfer:**
+
+   | | Karlan & List | H3 |
+   | --- | --- | --- |
+   | Who funds the match | **A third-party lead donor** | **The creditor who profits from collection** |
+   | What the payer's money buys | More of a cause they already support | Reduction of their own liability |
+   | Signal carried | A major donor endorses this charity — a quality signal | None. An offer from the profiting counterparty, to a population where "debt not owed" is the top complaint category since 2013 |
+   | Population | **Prior donors** — a warm list with demonstrated affinity | Defaulted accounts, often years post-charge-off, cold contact |
+   | Affect of paying | Warm glow | Not that |
+
+   Karlan & List identify **two** effects — a price effect and a
+   lead-donor signal effect. Only the price effect has an analogue in H3, and
+   stripped of the signal it is simply **a 50% settlement discount**, which the
+   collections industry already offers routinely. The novelty the study measured
+   is largely absent.
+
+   **The sharper problem — why "1:1 is enough" may actively mislead.** In
+   charitable giving there is **no finish line**; a donor is never "done," so
+   diminishing returns above 1:1 make sense. In H3 the ratio determines
+   `100/(R+1)` — **whether paying off the balance is reachable at all.** That is
+   a threshold effect with no counterpart in the donation setting.
+   `docs/research/market.md` carries the finding that actually governs this:
+   Gal & McShane's result that **proportion of accounts eliminated** predicts
+   staying debt-free better than dollars paid, rate, or income. **Set the ratio
+   by reachability, not by Karlan & List's diminishing-returns curve.**
+
+   This is the third time a behavioural result has been proposed for transfer
+   into this population (after Repayment-by-Purchase and round-number targets)
+   and the third time the transfer fails on the same fault line: **the mechanism
+   was measured on engaged people with a live relationship, and charged-off
+   accounts have neither.**
 3. **A match is materially different from a settlement offer in consumer
    perception.** Assumed throughout. If consumers read them identically, the
    entire mechanic reduces to a discount that the industry already offers, and

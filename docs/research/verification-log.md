@@ -28,6 +28,8 @@ expected to stay empty this sprint.
 | --- | --- | --- | --- | --- |
 | V1 | **~Half of all debt collection cases are for less than $2,000** (Utah, Minnesota, Michigan) | [Pew, *Debt Collection Lawsuits Surge to Pre-Pandemic Highs*, 2 Sep 2025](https://www.pew.org/en/research-and-analysis/articles/2025/09/02/debt-collection-lawsuits-surge-to-pre-pandemic-highs) | Lead, independent corroboration — exact sentence confirmed via search after the page 403'd to direct fetch | **Directly contradicts H3's premise that small balances are *de facto* non-litigable.** Caveat: covers *all* collection cases (medical, original creditors, small local collectors), not specifically debt-buyer purchases of charged-off card paper. See Block 4 |
 | V2 | Pew reports **<4% of people sued for debt have legal representation** | Same as V1 | Lead | Consistent with `notes.md` CRL figure (98%+ unrepresented). Two independent sources agree |
+| V4 | `notes.md`: PRA **legal collection costs $48.5M (+$15.1M YoY)** and **legal collection fees $17.1M**, Q1 2026 | [PRA Q1 2026 earnings release, SEC](https://www.sec.gov/Archives/edgar/data/1185348/000118534826000019/q12026earningsrelease.htm) — fetched directly (SEC 403s to WebFetch; needs a User-Agent) | Lead | **Exact match.** Filing shows costs `48,458` vs `33,394` (Δ $15.06M) and fees `17,071`, in $000s. Also confirmed in the same document: cash efficiency ratio **61.8%**, ERC **$8.5B up 9.5%**, total cash collections $551.9M up 11.0% |
+| V5 | `h3-ownership-as-product.md` cites Karlan & List (2007, *AER*) from memory: a 1:1 match raised giving, while 2:1 and 3:1 did no better | [AEA](https://www.aeaweb.org/articles?id=10.1257%2Faer.97.5.1774), [NBER w12338](https://www.nber.org/papers/w12338) | Lead | **Citation holds exactly.** >50,000 prior donors; match ratios $1:$1 / $2:$1 / $3:$1. Match raised revenue per solicitation and response rate; "larger match ratios… had no additional impact." **But see the transfer analysis below — the citation being correct is not the same as the finding applying.** |
 | V3 | **Ohio, Georgia and Virginia require no state-level collection agency licence** | Multiple independent compliance vendors concur ([Harbor Compliance](https://www.harborcompliance.com/debt-collection-agency-license), [Cornerstone](https://cornerstonelicensing.com/debt-collection-state-laws/), [SoloSuit](https://www.solosuit.com/posts/states-require-license-debt-collector)); Agent B reports verification against state sources | Lead, corroboration pass | **Directionally confirmed but caveated.** These are secondary sources; ~38 of 52 US jurisdictions do license. **Municipalities within these states may impose their own requirements** — unverified. Also unverified: whether a *debt-buyer*-specific licence differs from a *collection-agency* licence in each |
 
 ## Claims refuted
@@ -44,6 +46,19 @@ expected to stay empty this sprint.
 
 | # | Claim | What was searched | Why it could not be settled |
 | --- | --- | --- | --- |
+| **X1** | 🔴 **`notes.md`: "PRA US legal collections = 53% of US core cash collections", cited to Q1 2026.** `notes.md` calls this **"the single most consequential number found."** | Both Q1 2026 primary documents, fetched in full from SEC EDGAR: the [earnings release](https://www.sec.gov/Archives/edgar/data/1185348/000118534826000019/q12026earningsrelease.htm) and the [full 10-Q](https://www.sec.gov/Archives/edgar/data/1185348/000118534826000021/praa-20260331.htm) (2.0MB). Searched for channel-mix tables, "collections by channel", any 53% in a collections context | **Not present in either.** No channel-mix table exists; zero mentions of "digital" as a channel; the sole "53%" regex hit is a false positive inside "153%" in a vintage table. Legal collection **costs and fees** are disclosed (V4) — the **share of collections** is not. **This does not refute the figure** — it may come from an investor presentation, an earnings call, or derivation. But it is **not verifiable at the source it is cited to**, and `notes.md` rule 1 says SEC filings outrank everything |
+
+### Why X1 matters more than anything else in this log
+
+The 53% figure is load-bearing for the entire project. It is the basis for
+rev. 1's death ("removing legal deletes a large share of the denominator"), for
+rev. 2's structure, and for the objection that H3 is a re-run of rev. 1. The
+IRR bridge's −2,057bp legal-removal step is built on it.
+
+**Action:** locate the actual source, or downgrade it to derived/estimated and
+re-examine every conclusion resting on it. Candidates not yet checked: PRA's Q1
+2026 investor presentation (403'd for Agent C), the Q1 2026 earnings call
+transcript, and PRA's FY2025 10-K.
 
 ## `ask` outputs that failed verification
 

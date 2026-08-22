@@ -8,8 +8,14 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 
 import {
+  decayScheduleBps,
+  irrAnnualBps,
+  npvCents,
+  underwrite,
+  GROSS_RECOVERY_BPS,
+  LEGAL_SHARE_BPS_PLAN,
+  LEGAL_SHARE_BPS_VERIFIED,
   SERVICING_BPS,
-  VOLUNTARY_BASELINE_BPS,
   breakEvenCents,
   bpsOfFace,
   clearingPaymentCents,
@@ -18,7 +24,12 @@ import {
   netPerDollarFaceBps,
   purchasePriceCents,
   servicingCostCents,
+  voluntaryBaselineBps,
 } from "./portfolio.ts";
+
+// Derived, not hardcoded — see the contradiction note in portfolio.ts.
+const BASELINE_PLAN = voluntaryBaselineBps(LEGAL_SHARE_BPS_PLAN); // 1260 bps
+const BASELINE_VERIFIED = voluntaryBaselineBps(LEGAL_SHARE_BPS_VERIFIED); // 870 bps
 
 // The worked example from docs/decisions/h3-ownership-as-product.md.
 const FACE = 423_700; // $4,237.00
@@ -90,17 +101,115 @@ test("net per $1 face is invariant to ratio at fixed collections", () => {
   assert.equal(baseline, 1459);
 });
 
-test("match beats baseline iff cash collected exceeds 12.6¢ of face", () => {
-  const atBaseline = bpsOfFace(FACE, VOLUNTARY_BASELINE_BPS); // exactly 12.6¢
-  assert.equal(matchBeatsBaseline(atBaseline, FACE).beatsBaseline, false);
-  assert.equal(matchBeatsBaseline(atBaseline + 1_000, FACE).beatsBaseline, true);
-  assert.equal(matchBeatsBaseline(atBaseline - 1_000, FACE).beatsBaseline, false);
+test("match beats baseline iff cash collected exceeds the baseline", () => {
+  const atBaseline = bpsOfFace(FACE, BASELINE_PLAN); // exactly 12.6¢
+  assert.equal(matchBeatsBaseline(atBaseline, FACE, BASELINE_PLAN).beatsBaseline, false);
+  assert.equal(matchBeatsBaseline(atBaseline + 1_000, FACE, BASELINE_PLAN).beatsBaseline, true);
+  assert.equal(matchBeatsBaseline(atBaseline - 1_000, FACE, BASELINE_PLAN).beatsBaseline, false);
 
   // The 4:1 clearing payment comfortably beats the baseline.
-  const clearing = matchBeatsBaseline(clearingPaymentCents(FACE, 4), FACE);
+  const clearing = matchBeatsBaseline(clearingPaymentCents(FACE, 4), FACE, BASELINE_PLAN);
   assert.equal(clearing.beatsBaseline, true);
   assert.equal(clearing.collectedBps, 2000);
-  assert.equal(clearing.marginBps, 2000 - VOLUNTARY_BASELINE_BPS);
+  assert.equal(clearing.marginBps, 2000 - BASELINE_PLAN);
+});
+
+// The contradiction this model exists to keep visible.
+test("the two legal-share assumptions give materially different baselines", () => {
+  assert.equal(BASELINE_PLAN, 1260); // 16.8¢ × (1 − 0.25)
+  assert.equal(BASELINE_VERIFIED, 870); // 16.8¢ × (1 − 0.482)
+  // Net of servicing the gap is more than 2×, which is why no default is exported.
+  const netPlan = BASELINE_PLAN - SERVICING_BPS; // 719 bps
+  const netVerified = BASELINE_VERIFIED - SERVICING_BPS; // 329 bps
+  assert.equal(netPlan, 719);
+  assert.equal(netVerified, 329);
+  assert.ok(netPlan > netVerified * 2, "the choice of legal share more than doubles net");
+});
+
+test("voluntaryBaselineBps rejects impossible shares", () => {
+  assert.throws(() => voluntaryBaselineBps(-1));
+  assert.throws(() => voluntaryBaselineBps(10_001));
+  assert.equal(voluntaryBaselineBps(0), GROSS_RECOVERY_BPS); // litigate everything
+  assert.equal(voluntaryBaselineBps(10_000), 0); // legal is the only channel
+});
+
+test("decay schedule sums to exactly 10000 bps and declines", () => {
+  for (const [months, ret] of [[48, 9_000], [12, 5_000], [180, 9_800], [1, 9_000]] as const) {
+    const s = decayScheduleBps(months, ret);
+    assert.equal(s.length, months);
+    assert.equal(s.reduce((a, b) => a + b, 0), 10_000, `${months}/${ret} must sum to 10000`);
+    for (let i = 1; i < s.length; i++) {
+      assert.ok(s[i] <= s[i - 1], "weights must be non-increasing");
+    }
+  }
+  assert.throws(() => decayScheduleBps(0, 9_000));
+  assert.throws(() => decayScheduleBps(48, 0));
+});
+
+test("npv discounts — later money is worth less", () => {
+  assert.equal(npvCents([1_000], 100), 1_000); // t=0 is undiscounted
+  assert.ok(npvCents([0, 1_000], 100) < 1_000);
+  assert.equal(npvCents([0, 1_000], 0), 1_000); // zero rate = no discount
+});
+
+test("irr returns null when there is no sign change", () => {
+  assert.equal(irrAnnualBps([100, 200, 300]), null); // all positive
+  assert.equal(irrAnnualBps([-100, -200]), null); // all negative
+  assert.equal(irrAnnualBps([]), null);
+});
+
+test("irr recovers a known rate", () => {
+  // Pay 100 now, receive 110 in 12 months => ~10% annual.
+  const cf = [-10_000, ...Array(11).fill(0), 11_000];
+  const irr = irrAnnualBps(cf);
+  assert.ok(irr !== null);
+  assert.ok(Math.abs(irr! - 1_000) < 20, `expected ~1000bps, got ${irr}`);
+});
+
+test("underwrite: max price is the decision output", () => {
+  const r = underwrite({
+    faceCents: 100_000_000, // $1,000,000 face
+    priceBps: 500, // asking 5¢
+    legalShareBps: LEGAL_SHARE_BPS_VERIFIED,
+  });
+  // Discounting must reduce what we can pay below the undiscounted net.
+  assert.ok(r.maxPriceCents < r.expectedNetCents, "PV must be below undiscounted net");
+  assert.equal(r.clearsHurdle, r.purchasePriceCents <= r.maxPriceCents);
+  // NPV and the verdict must never disagree.
+  assert.equal(r.clearsHurdle, r.npvCents >= 0, "NPV sign must match the verdict");
+});
+
+test("underwrite: the verified legal share is harsher than the plan's", () => {
+  const base = { faceCents: 100_000_000, priceBps: 500 };
+  const plan = underwrite({ ...base, legalShareBps: LEGAL_SHARE_BPS_PLAN });
+  const verified = underwrite({ ...base, legalShareBps: LEGAL_SHARE_BPS_VERIFIED });
+  assert.ok(verified.maxPriceBps < plan.maxPriceBps, "48.2% must permit a lower price than 25%");
+  assert.ok(verified.expectedGrossBps < plan.expectedGrossBps);
+});
+
+test("underwrite: a free portfolio always clears, an absurd price never does", () => {
+  const base = { faceCents: 100_000_000, legalShareBps: LEGAL_SHARE_BPS_VERIFIED };
+  assert.equal(underwrite({ ...base, priceBps: 0 }).clearsHurdle, true);
+  assert.equal(underwrite({ ...base, priceBps: 10_000 }).clearsHurdle, false); // paying face
+});
+
+test("underwrite: a longer horizon at equal total collections is worth less", () => {
+  const base = {
+    faceCents: 100_000_000,
+    priceBps: 300,
+    legalShareBps: LEGAL_SHARE_BPS_VERIFIED,
+    retentionBps: 9_900, // slow decay, so horizon genuinely extends the tail
+  };
+  const short = underwrite({ ...base, horizonMonths: 48 });
+  const long = underwrite({ ...base, horizonMonths: 180 });
+  assert.equal(short.expectedGrossCents, long.expectedGrossCents, "same total collected");
+  assert.ok(long.maxPriceCents < short.maxPriceCents, "the same money later is worth less");
+});
+
+test("underwrite rejects invalid input", () => {
+  assert.throws(() => underwrite({ faceCents: 0, priceBps: 500, legalShareBps: 4_820 }));
+  assert.throws(() => underwrite({ faceCents: 1_000, priceBps: -1, legalShareBps: 4_820 }));
+  assert.throws(() => underwrite({ faceCents: 1_000, priceBps: 500, legalShareBps: 10_001 }));
 });
 
 test("no floats leak — every money value is an integer", () => {
