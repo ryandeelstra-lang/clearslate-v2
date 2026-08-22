@@ -89,16 +89,28 @@ test("partial payment leaves the expected remainder", () => {
 });
 
 // The central claim of H3: net is independent of the match ratio.
-test("net per $1 face is invariant to ratio at fixed collections", () => {
-  const collected = 84_740;
-  const baseline = netPerDollarFaceBps(collected, FACE);
-  // Whatever ratio produced this collection, the net is identical — the ratio
-  // never enters the calculation.
-  for (const _ratio of [1, 2, 3, 4, 7]) {
-    assert.equal(netPerDollarFaceBps(collected, FACE), baseline);
+//
+// An earlier version of this test looped over ratios without using the loop
+// variable — it called one pure function five times with identical arguments
+// and proved nothing. Flagged in adversarial review. This version actually
+// varies the ratio: different ratios, SAME cash collected, and checks that both
+// the cancelled balance differs (so the ratio genuinely did something) and the
+// net is unchanged (so it did nothing to us).
+test("net is invariant to ratio at fixed cash collected", () => {
+  const collected = 84_740; // what the consumer actually pays, held constant
+  const nets = new Set<number>();
+  const cancellations = new Set<number>();
+
+  for (const ratio of [1, 2, 3, 4, 7]) {
+    const out = matchOutcome(FACE, ratio, collected);
+    cancellations.add(out.cancelledCents);
+    nets.add(netPerDollarFaceBps(out.consumerPaidCents, FACE));
   }
+
+  assert.equal(nets.size, 1, "net must not vary with ratio");
+  assert.ok(cancellations.size > 1, "ratio must actually change the balance cancelled");
   // 84_740 collected − 22_922 servicing = 61_818 net on 423_700 face = 1459 bps
-  assert.equal(baseline, 1459);
+  assert.equal([...nets][0], 1459);
 });
 
 test("match beats baseline iff cash collected exceeds the baseline", () => {
@@ -169,6 +181,7 @@ test("irr recovers a known rate", () => {
 test("underwrite: max price is the decision output", () => {
   const r = underwrite({
     faceCents: 100_000_000, // $1,000,000 face
+    accounts: 1_200, // avg $833
     priceBps: 500, // asking 5¢
     legalShareBps: LEGAL_SHARE_BPS_VERIFIED,
   });
@@ -180,7 +193,7 @@ test("underwrite: max price is the decision output", () => {
 });
 
 test("underwrite: the verified legal share is harsher than the plan's", () => {
-  const base = { faceCents: 100_000_000, priceBps: 500 };
+  const base = { faceCents: 100_000_000, accounts: 1_200, priceBps: 500 };
   const plan = underwrite({ ...base, legalShareBps: LEGAL_SHARE_BPS_PLAN });
   const verified = underwrite({ ...base, legalShareBps: LEGAL_SHARE_BPS_VERIFIED });
   assert.ok(verified.maxPriceBps < plan.maxPriceBps, "48.2% must permit a lower price than 25%");
@@ -188,7 +201,7 @@ test("underwrite: the verified legal share is harsher than the plan's", () => {
 });
 
 test("underwrite: a free portfolio always clears, an absurd price never does", () => {
-  const base = { faceCents: 100_000_000, legalShareBps: LEGAL_SHARE_BPS_VERIFIED };
+  const base = { faceCents: 100_000_000, accounts: 1_200, legalShareBps: LEGAL_SHARE_BPS_VERIFIED };
   assert.equal(underwrite({ ...base, priceBps: 0 }).clearsHurdle, true);
   assert.equal(underwrite({ ...base, priceBps: 10_000 }).clearsHurdle, false); // paying face
 });
@@ -196,6 +209,7 @@ test("underwrite: a free portfolio always clears, an absurd price never does", (
 test("underwrite: a longer horizon at equal total collections is worth less", () => {
   const base = {
     faceCents: 100_000_000,
+    accounts: 1_200,
     priceBps: 300,
     legalShareBps: LEGAL_SHARE_BPS_VERIFIED,
     retentionBps: 9_900, // slow decay, so horizon genuinely extends the tail
@@ -204,6 +218,83 @@ test("underwrite: a longer horizon at equal total collections is worth less", ()
   const long = underwrite({ ...base, horizonMonths: 180 });
   assert.equal(short.expectedGrossCents, long.expectedGrossCents, "same total collected");
   assert.ok(long.maxPriceCents < short.maxPriceCents, "the same money later is worth less");
+});
+
+// The load-bearing invariant: maxPrice is the price at which NPV crosses zero.
+// If these ever disagree, the verdict is meaningless. Flagged in adversarial review.
+test("underwrite: NPV is ~0 when priced exactly at maxPrice", () => {
+  const base = {
+    faceCents: 100_000_000,
+    accounts: 1_200,
+    legalShareBps: LEGAL_SHARE_BPS_VERIFIED,
+  };
+  const r = underwrite({ ...base, priceBps: 500 });
+  const atMax = underwrite({ ...base, priceBps: r.maxPriceBps });
+  // Within rounding of one bps of face on a $1M tape.
+  assert.ok(
+    Math.abs(atMax.npvCents) < 10_000,
+    `NPV at maxPrice should be ~0, got ${atMax.npvCents}`,
+  );
+  assert.equal(atMax.clearsHurdle, true, "pricing at the ceiling must still clear");
+  assert.equal(underwrite({ ...base, priceBps: r.maxPriceBps + 25 }).clearsHurdle, false);
+});
+
+// Up-front servicing is charged PER ACCOUNT, so its drag in bps of face scales
+// inversely with average balance. This is the finding adversarial review
+// understated: it lands hardest on exactly the small balances H3 wants to buy.
+test("up-front servicing punishes small balances", () => {
+  const face = 100_000_000; // $1,000,000 held constant
+  const drag = (accounts: number) =>
+    underwrite({
+      faceCents: face,
+      accounts,
+      priceBps: 300,
+      legalShareBps: LEGAL_SHARE_BPS_VERIFIED,
+    }).upfrontServicingBps;
+
+  const big = drag(400); // avg $2,500
+  const mid = drag(1_200); // avg $833
+  const small = drag(2_500); // avg $400
+
+  assert.ok(small > mid && mid > big, "smaller balances must carry more drag per $1 of face");
+  assert.equal(big, 7); // 7 bps
+  assert.equal(small, 44); // 44 bps — over 6x
+  // At a ~305 bps ceiling this is ~14% of the entire budget.
+  assert.ok(small > 40, "small-balance drag must remain visible, not rounded away");
+});
+
+test("underwrite refuses to silently ignore per-account cost", () => {
+  // accounts omitted while upfront cost is non-zero => throw, never a quiet zero.
+  assert.throws(
+    () => underwrite({ faceCents: 100_000_000, priceBps: 300, legalShareBps: 4_820 }),
+    /accounts is required/,
+  );
+  // Opting out explicitly is allowed.
+  const optedOut = underwrite({
+    faceCents: 100_000_000,
+    priceBps: 300,
+    legalShareBps: 4_820,
+    upfrontCentsPerAccount: 0,
+  });
+  assert.equal(optedOut.upfrontServicingCents, 0);
+  assert.throws(() =>
+    underwrite({ faceCents: 100_000_000, accounts: 0, priceBps: 300, legalShareBps: 4_820 }),
+  );
+});
+
+test("underwrite: up-front cost lowers what we can pay", () => {
+  const base = {
+    faceCents: 100_000_000,
+    accounts: 2_500,
+    priceBps: 300,
+    legalShareBps: LEGAL_SHARE_BPS_VERIFIED,
+  };
+  const withCost = underwrite(base);
+  const without = underwrite({ ...base, upfrontCentsPerAccount: 0 });
+  assert.ok(
+    withCost.maxPriceBps < without.maxPriceBps,
+    "modelling up-front cost must reduce the ceiling, not raise it",
+  );
 });
 
 test("underwrite rejects invalid input", () => {

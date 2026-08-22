@@ -12,6 +12,7 @@ import {
   LEGAL_SHARE_BPS_PLAN,
   LEGAL_SHARE_BPS_VERIFIED,
   SERVICING_BPS,
+  UPFRONT_CENTS_PER_ACCOUNT,
   clearingPaymentCents,
   underwrite,
   type UnderwriteResult,
@@ -33,10 +34,16 @@ Required
                               ${LEGAL_SHARE_BPS_VERIFIED}  PRA FY2025 10-K, verified (48.2%)
 
 Optional
-  --accounts <n>            Account count, to show per-account economics
+  --accounts <n>            Account count. REQUIRED unless --upfront-cents 0 —
+                            up-front servicing is per account, and its drag in
+                            bps of face scales inversely with average balance
   --ratio <n>               Match ratio R:1, to show the consumer's clearing payment
   --gross-recovery-bps <n>  All-channel gross recovery      (default ${GROSS_RECOVERY_BPS})
-  --servicing-bps <n>       Fully-loaded servicing          (default ${SERVICING_BPS}, PLACEHOLDER pending U6)
+  --servicing-bps <n>       Collection-proportional servicing (default ${SERVICING_BPS}, PLACEHOLDER pending U6)
+  --upfront-cents <n>       Up-front servicing PER ACCOUNT, in cents (default ${UPFRONT_CENTS_PER_ACCOUNT}).
+                            Validation notice + pre-contact scrubs, charged on
+                            every account whether it pays or not. Requires
+                            --accounts. Set 0 to opt out explicitly.
   --horizon <months>        Collection horizon              (default ${DEFAULT_HORIZON_MONTHS})
   --retention-bps <n>       Monthly decay of collection rate (default 9000 = 90%/mo)
   --hurdle-bps <n>          Annual hurdle rate              (default ${HURDLE_ANNUAL_BPS})
@@ -92,7 +99,12 @@ function report(r: UnderwriteResult, opts: { accounts?: number; ratio?: number; 
   L("Face value", usd(opts.faceCents));
   if (per) L("Accounts", `${per.toLocaleString("en-US")} (avg ${usd(Math.round(opts.faceCents / per))})`);
   L("Purchase price", `${usd(r.purchasePriceCents)}  (${cpd(Math.round((r.purchasePriceCents * 10_000) / opts.faceCents))}/$1)`);
-  L("Servicing", `${usd(r.servicingCents)}  (${cpd(Math.round((r.servicingCents * 10_000) / opts.faceCents))}/$1)`);
+  if (r.upfrontServicingCents > 0) {
+    L("Servicing — up front", `${usd(r.upfrontServicingCents)}  (${cpd(r.upfrontServicingBps)}/$1)  ← per account, paying or not`);
+    L("Servicing — variable", `${usd(r.variableServicingCents)}  (${cpd(Math.round((r.variableServicingCents * 10_000) / opts.faceCents))}/$1)`);
+  } else {
+    L("Servicing", `${usd(r.servicingCents)}  (${cpd(Math.round((r.servicingCents * 10_000) / opts.faceCents))}/$1)`);
+  }
   L("Break-even collection", `${usd(r.breakEvenCents)}  (${cpd(r.breakEvenBps)}/$1)`);
 
   lines.push("");
@@ -136,12 +148,15 @@ function main() {
   // Convert at the boundary. Money is integer cents everywhere inside.
   const faceCents = Math.round(faceDollars * 100);
 
+  const accounts = args.has("accounts") ? num(args, "accounts") : undefined;
   const input = {
     faceCents,
     priceBps: num(args, "price-bps"),
     legalShareBps: num(args, "legal-share-bps"),
     grossRecoveryBps: num(args, "gross-recovery-bps", GROSS_RECOVERY_BPS),
     servicingBps: num(args, "servicing-bps", SERVICING_BPS),
+    accounts,
+    upfrontCentsPerAccount: num(args, "upfront-cents", UPFRONT_CENTS_PER_ACCOUNT),
     horizonMonths: num(args, "horizon", DEFAULT_HORIZON_MONTHS),
     retentionBps: num(args, "retention-bps", 9_000),
     hurdleAnnualBps: num(args, "hurdle-bps", HURDLE_ANNUAL_BPS),

@@ -195,6 +195,28 @@ export function matchBeatsBaseline(
 /** Effective hurdle from notes.md: SOFR 3.62% + 6.40%. */
 export const HURDLE_ANNUAL_BPS = 1002;
 
+/**
+ * Up-front servicing incurred PER ACCOUNT at acquisition, whether or not the
+ * account ever pays: Reg F §1006.34 validation notice (print + postage) plus
+ * pre-contact scrubs (bankruptcy, deceased, SCRA, attorney-represented).
+ *
+ * PLACEHOLDER pending U6. Not an observed figure.
+ *
+ * ⚠️ THIS IS PER ACCOUNT, NOT PER DOLLAR OF FACE, and that distinction is
+ * load-bearing for H3. Because it is a flat per-account charge, its drag in
+ * bps of face scales INVERSELY with average balance:
+ *
+ *     $2,500 avg balance  ->   7 bps of face
+ *     $833   avg balance  ->  21 bps
+ *     $400   avg balance  ->  44 bps
+ *
+ * H3 proposes buying SMALL balances. This cost lands hardest precisely there —
+ * roughly 14% of the entire price ceiling at a $400 average. Any model that
+ * expresses servicing purely as bps of face hides this, and hides it in the
+ * direction that flatters the thesis.
+ */
+export const UPFRONT_CENTS_PER_ACCOUNT = 175;
+
 /** Collection horizon for a voluntary-only book. Incumbents underwrite to 180. */
 export const DEFAULT_HORIZON_MONTHS = 48;
 
@@ -265,7 +287,15 @@ export type UnderwriteInput = {
   /** Share of collections forfeited by never litigating. NO DEFAULT — see note above. */
   legalShareBps: number;
   grossRecoveryBps?: number;
+  /** Collection-proportional servicing, in bps of face. Excludes up-front costs. */
   servicingBps?: number;
+  /**
+   * Account count. Required to model up-front per-account servicing. Omit only
+   * when `upfrontCentsPerAccount` is 0 — otherwise the model silently ignores a
+   * cost that dominates small-balance portfolios.
+   */
+  accounts?: number;
+  upfrontCentsPerAccount?: number;
   horizonMonths?: number;
   /** Monthly retention of the collection rate. 9000 = each month is 90% of the last. */
   retentionBps?: number;
@@ -274,7 +304,12 @@ export type UnderwriteInput = {
 
 export type UnderwriteResult = {
   purchasePriceCents: number;
-  servicingCents: number;
+  /** Charged at t=0 on every account, paying or not. */
+  upfrontServicingCents: number;
+  upfrontServicingBps: number;
+  /** Spread pro-rata with collections. */
+  variableServicingCents: number;
+  servicingCents: number; // upfront + variable
   breakEvenCents: number;
   breakEvenBps: number;
   expectedGrossCents: number;
@@ -305,6 +340,8 @@ export function underwrite(input: UnderwriteInput): UnderwriteResult {
     legalShareBps,
     grossRecoveryBps = GROSS_RECOVERY_BPS,
     servicingBps = SERVICING_BPS,
+    accounts,
+    upfrontCentsPerAccount = UPFRONT_CENTS_PER_ACCOUNT,
     horizonMonths = DEFAULT_HORIZON_MONTHS,
     retentionBps = 9_000,
     hurdleAnnualBps = HURDLE_ANNUAL_BPS,
@@ -312,31 +349,54 @@ export function underwrite(input: UnderwriteInput): UnderwriteResult {
 
   if (faceCents <= 0) throw new Error("faceCents must be > 0");
   if (priceBps < 0) throw new Error("priceBps must be >= 0");
+  if (accounts !== undefined && (!Number.isFinite(accounts) || accounts <= 0)) {
+    throw new Error("accounts must be > 0 when supplied");
+  }
+  // Refuse to silently drop a cost that dominates small-balance portfolios.
+  if (accounts === undefined && upfrontCentsPerAccount > 0) {
+    throw new Error(
+      "accounts is required when upfrontCentsPerAccount > 0 — " +
+        "per-account up-front servicing cannot be modelled without a count. " +
+        "Pass accounts, or set upfrontCentsPerAccount: 0 to opt out explicitly.",
+    );
+  }
 
   const purchasePriceCents = bpsOfFace(faceCents, priceBps);
-  const servicingCents = bpsOfFace(faceCents, servicingBps);
+  const upfrontServicingCents = accounts
+    ? Math.round(accounts * upfrontCentsPerAccount)
+    : 0;
+  const variableServicingCents = bpsOfFace(faceCents, servicingBps);
+  const servicingCents = upfrontServicingCents + variableServicingCents;
   const breakEven = purchasePriceCents + servicingCents;
 
   const expectedGrossBps = voluntaryBaselineBps(legalShareBps, grossRecoveryBps);
   const expectedGrossCents = bpsOfFace(faceCents, expectedGrossBps);
   const expectedNetCents = expectedGrossCents - servicingCents;
 
-  // Servicing is spread in proportion to collections rather than charged up
-  // front — you do not pay to service an account you never collect on.
+  // Variable servicing is spread in proportion to collections — you do not pay
+  // to work an account you never collect on. Up-front servicing is NOT: the
+  // validation notice goes out on every account at t=0 whether it ever pays.
   const schedule = decayScheduleBps(horizonMonths, retentionBps);
+  const netOfVariable = expectedGrossCents - variableServicingCents;
   const netInflows = schedule.map((wBps) =>
-    Math.round((expectedNetCents * wBps) / 10_000),
+    Math.round((netOfVariable * wBps) / 10_000),
   );
 
   const monthlyRateBps = Math.round(
     (Math.pow(1 + hurdleAnnualBps / 10_000, 1 / 12) - 1) * 10_000,
   );
 
-  const maxPriceCents = npvCents([0, ...netInflows], monthlyRateBps);
-  const cashflows = [-purchasePriceCents, ...netInflows];
+  // Up-front servicing is spent at t=0 alongside the purchase price, so it
+  // reduces what is left over for the seller one-for-one, undiscounted.
+  const maxPriceCents =
+    npvCents([0, ...netInflows], monthlyRateBps) - upfrontServicingCents;
+  const cashflows = [-purchasePriceCents - upfrontServicingCents, ...netInflows];
 
   return {
     purchasePriceCents,
+    upfrontServicingCents,
+    upfrontServicingBps: Math.round((upfrontServicingCents * 10_000) / faceCents),
+    variableServicingCents,
     servicingCents,
     breakEvenCents: breakEven,
     breakEvenBps: Math.round((breakEven * 10_000) / faceCents),
