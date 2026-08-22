@@ -515,3 +515,51 @@ test("stress spread is wide enough that a point estimate would mislead", () => {
   // entirely by unresolved assumptions. This is why the CLI quotes a range.
   assert.ok(hi > lo * 5, `expected a wide spread, got ${lo}-${hi} bps`);
 });
+
+// The CLI is a second surface over the same math and can drift from it.
+// Round 4 found --json always exiting 0 even on a failing tape, so a script
+// parsing JSON could not branch the way a human reading the verdict does.
+test("CLI agrees with the API, and its exit code matches the verdict", async () => {
+  const { execFileSync } = await import("node:child_process");
+  const cli = new URL("./underwrite.ts", import.meta.url).pathname;
+
+  const run = (args: string[]) => {
+    try {
+      const stdout = execFileSync(
+        process.execPath,
+        ["--experimental-strip-types", cli, ...args],
+        { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] },
+      );
+      return { code: 0, stdout };
+    } catch (e) {
+      const err = e as { status: number; stdout: string };
+      return { code: err.status, stdout: err.stdout };
+    }
+  };
+
+  for (const [priceBps, expectClears] of [[100, true], [900, false]] as const) {
+    const args = [
+      "--face", "1000000",
+      "--accounts", "1200",
+      "--price-bps", String(priceBps),
+      "--legal-share-bps", String(LEGAL_SHARE_BPS_VERIFIED),
+      "--json",
+    ];
+    const { code, stdout } = run(args);
+    const parsed = JSON.parse(stdout);
+
+    const direct = underwrite({
+      faceCents: 100_000_000,
+      accounts: 1_200,
+      priceBps,
+      legalShareBps: LEGAL_SHARE_BPS_VERIFIED,
+    });
+
+    assert.equal(parsed.result.maxPriceBps, direct.maxPriceBps, "CLI must not drift from the API");
+    assert.equal(parsed.result.clearsHurdle, direct.clearsHurdle);
+    assert.equal(parsed.result.npvCents, direct.npvCents);
+    assert.equal(direct.clearsHurdle, expectClears);
+    // Exit code must carry the verdict, in JSON mode too.
+    assert.equal(code, expectClears ? 0 : 1, `exit code should reflect the verdict at ${priceBps}bps`);
+  }
+});

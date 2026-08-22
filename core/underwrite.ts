@@ -195,6 +195,13 @@ function main() {
     if (ceilings.length > 0) {
       console.log(`  Range: ${cpd(Math.min(...ceilings))} – ${cpd(Math.max(...ceilings))} per $1 of face.`);
       console.log(`  Quote the LOW end. The spread is parameter uncertainty, not upside.`);
+      // Retention is held fixed above. It is also undocumented, so say so
+      // rather than let the grid imply it has been accounted for.
+      const slow = underwrite({ ...input, retentionBps: 9_500 }).maxPriceBps;
+      const fast = underwrite({ ...input, retentionBps: 8_000 }).maxPriceBps;
+      console.log("");
+      console.log(`  Held fixed and NOT swept above: monthly retention ${input.retentionBps} (undocumented).`);
+      console.log(`  At 8000 / 9500 the ceiling moves to ${cpd(fast)} / ${cpd(slow)} per $1.`);
     } else {
       console.log("  Unacquirable under every scenario tested.");
     }
@@ -204,7 +211,9 @@ function main() {
 
   if (args.has("json")) {
     console.log(JSON.stringify({ input, result }, null, 2));
-    return 0;
+    // Must match the non-JSON path: a script parsing JSON should be able to
+    // branch on the exit code exactly as a human branches on the verdict.
+    return result.clearsHurdle ? 0 : 1;
   }
 
   console.log(
