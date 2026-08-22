@@ -86,6 +86,65 @@ litigious market.
 
 See correction #10.
 
+### Servicing cost — researched 22 Aug 2026
+
+**Up-front, per account.** Charged at acquisition on every account whether or not
+it ever pays. This is the input the small-balance thesis is most sensitive to,
+because a flat per-account charge scales inversely with average balance.
+
+| Component | Cost | Source | Confidence |
+| --- | --- | --- | --- |
+| Validation notice, print + mail, 1,000+ volume | **$0.80–$1.00** | [The Credit People](https://www.thecreditpeople.com/debt-collection/need-debt-collection-letter-services-printing-mail), [Postalocity](https://www.postalocity.com/who-we-serve/collection-agencies/) | Medium — vendor-quoted |
+| USPS First-Class metered, Jul 2026 | $0.78 | [USPS 2026 rates](https://www.quadient.com/en-us/postage-rates/usps) | Official |
+| USPS bulk presort | $0.20–$0.30 | Postalocity | Vendor-quoted |
+| Pre-contact scrubs — bankruptcy, deceased, SCRA, attorney-represented | **$0.50–$1.50** | **NOT FOUND** | **Low — estimate only** |
+| **Total per account** | **$1.30–$2.50** | mixed | |
+
+**Every commercial scrub vendor quotes privately** — LexisNexis Accurint,
+Experian FirstSweep, TransUnion TLOxp, RNN, BankruptcyWatch, LocateSmarter all
+price by custom quote with nothing public. The scrub half of this range is an
+estimate and should be treated as the weakest number in the model.
+
+**~100% of it is genuinely up-front**, not collection-proportional: Reg F
+§1006.34 requires the validation notice within five days of first contact, and
+the scrubs must run *before* first contact to avoid an FDCPA violation. This
+confirms the model's split.
+
+`core/portfolio.ts` uses **175 cents** — mid-range, and labelled a placeholder.
+
+**Ongoing servicing.** Encore FY2025 cost-to-collect **44.1%** (verified). PRA's
+cash efficiency ratio of 61.8% implies ~38%. Stripping legal (31% of PRA opex)
+gives ~26% for a non-litigating book, but that likely understates the contact
+intensity needed to reach the same recovery without a litigation threat.
+Estimated **400–500 bps** of face. The model's `SERVICING_BPS = 541` sits just
+above that — i.e. slightly conservative. Still unverified.
+
+### Substitution when litigation stops — the COVID natural experiment
+
+Courts closed in 2020. If collections held, substitution is real: some accounts
+that would have paid under legal pressure pay voluntarily instead.
+
+| Period | PRA US call centre collections | Legal |
+| --- | --- | --- |
+| Q3 2020 vs Q3 2019 | **+37% YoY** | not separately disclosed |
+| Q4 2020 vs Q4 2019 | **+22% YoY** | decreased, magnitude undisclosed |
+| FY2020 vs FY2019 | total collections +$164.5M | opex fell on the "shift from legal to call centers" |
+
+Source: [PRA Q4 2020 results](https://ir.pragroup.com/2021-02-25-PRA-Group-Reports-Fourth-Quarter-2020-Results).
+Encore's 2020 profit exceeded $200M, up ~40%.
+
+**Substitution exists. Its magnitude is not recoverable from public data, and the
+natural experiment is badly confounded.** CARES Act stimulus paid cash directly
+to precisely this population during precisely this window. Rising voluntary
+collections in 2020 are consistent with substitution, with stimulus, or with
+both, and no disclosure separates them — PRA does not publish a quarterly
+channel split at all.
+
+**Do not convert this into a substitution rate.** It supports the *direction*
+only. Underwrite at the verified L = 48.2% (zero substitution, conservative);
+run L = 35% as a sensitivity, labelled as such; and do not use the plan's
+L = 25% until someone can say where it came from.
+
 ### Cost of capital
 
 | Instrument | Rate | Source |
