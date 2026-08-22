@@ -14,6 +14,7 @@ import {
   SERVICING_BPS,
   UPFRONT_CENTS_PER_ACCOUNT,
   clearingPaymentCents,
+  stressTest,
   underwrite,
   type UnderwriteResult,
 } from "./portfolio.ts";
@@ -47,6 +48,9 @@ Optional
   --horizon <months>        Collection horizon              (default ${DEFAULT_HORIZON_MONTHS})
   --retention-bps <n>       Monthly decay of collection rate (default 9000 = 90%/mo)
   --hurdle-bps <n>          Annual hurdle rate              (default ${HURDLE_ANNUAL_BPS})
+  --stress                  Sweep the two most uncertain inputs (legal share,
+                            gross recovery) and print a range of price ceilings
+                            instead of a single number
   --json                    Emit JSON instead of a report
   --help
 `;
@@ -170,6 +174,33 @@ function main() {
   };
 
   const result = underwrite(input);
+
+  if (args.has("stress")) {
+    const grid = stressTest(input);
+    if (args.has("json")) {
+      console.log(JSON.stringify({ input, result, stress: grid }, null, 2));
+      return result.clearsHurdle ? 0 : 1;
+    }
+    const asked = Math.round((result.purchasePriceCents * 10_000) / faceCents);
+    console.log("");
+    console.log(`  PRICE CEILING ACROSS SCENARIOS   (asking ${cpd(asked)}/$1)`);
+    console.log("");
+    for (const s of grid) {
+      const ceiling = s.unacquirableAtAnyPrice ? "unacquirable" : `${cpd(s.maxPriceBps)}/$1`;
+      const mark = s.clearsHurdle ? "clears" : "no";
+      console.log(`  ${s.label.padEnd(50)}${ceiling.padStart(14)}   ${mark}`);
+    }
+    const ceilings = grid.filter((s) => !s.unacquirableAtAnyPrice).map((s) => s.maxPriceBps);
+    console.log("");
+    if (ceilings.length > 0) {
+      console.log(`  Range: ${cpd(Math.min(...ceilings))} – ${cpd(Math.max(...ceilings))} per $1 of face.`);
+      console.log(`  Quote the LOW end. The spread is parameter uncertainty, not upside.`);
+    } else {
+      console.log("  Unacquirable under every scenario tested.");
+    }
+    console.log("");
+    return result.clearsHurdle ? 0 : 1;
+  }
 
   if (args.has("json")) {
     console.log(JSON.stringify({ input, result }, null, 2));

@@ -11,8 +11,10 @@ import {
   decayScheduleBps,
   irrAnnualBps,
   npvCents,
+  stressTest,
   underwrite,
   GROSS_RECOVERY_BPS,
+  HURDLE_ANNUAL_BPS,
   LEGAL_SHARE_BPS_PLAN,
   LEGAL_SHARE_BPS_VERIFIED,
   SERVICING_BPS,
@@ -299,6 +301,83 @@ test("underwrite: up-front cost lowers what we can pay", () => {
 
 // Every gap here failed in the direction that makes a bad tape look buyable.
 // A negative cost reads as revenue. Found in adversarial review round 2.
+// Round 3: grossRecoveryBps was unbounded. At 50000 (a claimed 500% recovery)
+// the model recommended paying 235% of FACE for charged-off paper.
+test("underwrite rejects recovery/price/servicing above 100% of face", () => {
+  const ok = {
+    faceCents: 100_000_000,
+    accounts: 1_200,
+    priceBps: 300,
+    legalShareBps: LEGAL_SHARE_BPS_VERIFIED,
+  };
+  assert.throws(() => underwrite({ ...ok, grossRecoveryBps: 50_000 }), /<= 10000/);
+  assert.throws(() => underwrite({ ...ok, grossRecoveryBps: 10_001 }), /<= 10000/);
+  assert.throws(() => underwrite({ ...ok, priceBps: 10_001 }), /<= 10000/);
+  assert.throws(() => underwrite({ ...ok, servicingBps: 10_001 }), /<= 10000/);
+  assert.throws(() => underwrite({ ...ok, retentionBps: 10_000 }), /< 10000/);
+  assert.throws(() => underwrite({ ...ok, upfrontCentsPerAccount: 0.5 }), /integer/);
+  assert.throws(() => underwrite({ ...ok, horizonMonths: 48.5 }), /integer/);
+  // Sanity: we can never be told to pay more than face.
+  const r = underwrite({ ...ok, grossRecoveryBps: 10_000 });
+  assert.ok(r.maxPriceBps <= 10_000, "max price must never exceed face value");
+});
+
+// Round 3: at a 180-month horizon this reported 409,500% IRR on a deal with
+// -$2.16M NPV. Root cause: (1 + -0.9999)^180 underflows to 0, f(lo) becomes
+// Infinity, `NaN <= 0` is false, and the bisection converged on the UPPER bound.
+test("IRR never contradicts NPV, at any horizon", () => {
+  for (const horizonMonths of [12, 48, 120, 180, 360]) {
+    for (const priceBps of [50, 300, 900, 5_000]) {
+      const r = underwrite({
+        faceCents: 100_000_000,
+        accounts: 1_200,
+        priceBps,
+        horizonMonths,
+        legalShareBps: LEGAL_SHARE_BPS_VERIFIED,
+      });
+      if (r.irrAnnualBps === null) continue;
+      const label = `${horizonMonths}mo @ ${priceBps}bps -> npv ${r.npvCents}, irr ${r.irrAnnualBps}`;
+      if (r.npvCents < 0) {
+        assert.ok(r.irrAnnualBps <= HURDLE_ANNUAL_BPS, `negative NPV needs IRR <= hurdle: ${label}`);
+      }
+      if (r.npvCents > 0) {
+        assert.ok(r.irrAnnualBps >= HURDLE_ANNUAL_BPS, `positive NPV needs IRR >= hurdle: ${label}`);
+      }
+    }
+  }
+});
+
+// The exact scenario round 3 broke the model with. Kept as a named regression
+// rather than a magnitude bound: an earlier draft of the test above asserted
+// IRR < 10,000%, which FAILED on a legitimately spectacular deal (12 months at
+// 0.5¢ returns ~4.6x, so the monthly rate is ~53% and annualising compounds it
+// to ~18,000%). That is correct arithmetic, not a bug. The pathology to catch
+// is the bisection pinning to its own search ceiling, which the NPV/IRR
+// agreement invariant detects and a magnitude threshold does not.
+test("the 180-month IRR pathology stays fixed", () => {
+  const r = underwrite({
+    faceCents: 100_000_000,
+    accounts: 1_200,
+    priceBps: 900,
+    horizonMonths: 180,
+    legalShareBps: LEGAL_SHARE_BPS_VERIFIED,
+  });
+  assert.ok(r.npvCents < 0, "this tape should lose money");
+  // Previously reported 409,500% (monthly pinned at the 1.0 search ceiling).
+  assert.ok(
+    r.irrAnnualBps === null || r.irrAnnualBps <= HURDLE_ANNUAL_BPS,
+    `losing tape must not report a rate above the hurdle, got ${r.irrAnnualBps}`,
+  );
+});
+
+test("irr survives long horizons without overflowing", () => {
+  // 180 monthly inflows after one outflow — the shape that broke the old search.
+  const cf = [-100_000, ...Array(180).fill(1_000)];
+  const irr = irrAnnualBps(cf);
+  assert.ok(irr !== null, "should find a rate");
+  assert.ok(irr! > 0 && irr! < 100_000, `expected a sane positive rate, got ${irr}`);
+});
+
 test("underwrite rejects inputs that would flatter a bad deal", () => {
   const ok = {
     faceCents: 100_000_000,
@@ -385,4 +464,54 @@ test("invalid inputs throw rather than returning nonsense", () => {
   assert.throws(() => matchOutcome(FACE, 4, -1));
   assert.throws(() => netPerDollarFaceBps(1_000, 0));
   assert.throws(() => matchBeatsBaseline(1_000, 0));
+});
+
+test("stressTest sweeps both uncertain inputs and sweeps them monotonically", () => {
+  const grid = stressTest({
+    faceCents: 100_000_000,
+    accounts: 2_500,
+    priceBps: 300,
+    legalShareBps: LEGAL_SHARE_BPS_VERIFIED, // ignored — the sweep overrides it
+  });
+  assert.equal(grid.length, 9, "3 legal shares x 3 recovery levels");
+
+  // A higher legal share forfeits more, so it must never permit a higher price.
+  for (const recovery of new Set(grid.map((s) => s.grossRecoveryBps))) {
+    const row = grid
+      .filter((s) => s.grossRecoveryBps === recovery)
+      .sort((a, b) => a.legalShareBps - b.legalShareBps);
+    for (let i = 1; i < row.length; i++) {
+      assert.ok(
+        row[i].maxPriceBps <= row[i - 1].maxPriceBps,
+        "more legal share forfeited must not raise the ceiling",
+      );
+    }
+  }
+  // Higher recovery must never lower the ceiling.
+  for (const legal of new Set(grid.map((s) => s.legalShareBps))) {
+    const col = grid
+      .filter((s) => s.legalShareBps === legal)
+      .sort((a, b) => a.grossRecoveryBps - b.grossRecoveryBps);
+    for (let i = 1; i < col.length; i++) {
+      assert.ok(
+        col[i].maxPriceBps >= col[i - 1].maxPriceBps,
+        "more recovery must not lower the ceiling",
+      );
+    }
+  }
+});
+
+test("stress spread is wide enough that a point estimate would mislead", () => {
+  const grid = stressTest({
+    faceCents: 100_000_000,
+    accounts: 2_500,
+    priceBps: 300,
+    legalShareBps: LEGAL_SHARE_BPS_VERIFIED,
+  });
+  const ceilings = grid.map((s) => s.maxPriceBps);
+  const lo = Math.min(...ceilings);
+  const hi = Math.max(...ceilings);
+  // ~0.60c to ~9.16c on the documented placeholders: a 15x spread driven
+  // entirely by unresolved assumptions. This is why the CLI quotes a range.
+  assert.ok(hi > lo * 5, `expected a wide spread, got ${lo}-${hi} bps`);
 });

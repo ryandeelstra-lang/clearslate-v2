@@ -280,20 +280,47 @@ export function irrAnnualBps(cashflowsCents: number[]): number | null {
   const hasNeg = cashflowsCents.some((c) => c < 0);
   if (!hasPos || !hasNeg) return null;
 
-  let lo = -0.9999; // monthly
-  let hi = 1.0;
   const f = (r: number) =>
     cashflowsCents.reduce((acc, c, t) => acc + c / Math.pow(1 + r, t), 0);
 
-  if (f(lo) * f(hi) > 0) return null;
+  // A conventional series (one outflow, then inflows) has exactly one root and
+  // f is strictly decreasing in r, so we bracket it explicitly.
+  //
+  // The previous implementation fixed the bracket at [-0.9999, 1.0] and tested
+  // it with f(lo) * f(mid) <= 0. At long horizons that is catastrophic: with
+  // 180 periods, (1 + -0.9999)^180 = 1e-720 underflows to zero, f(lo) becomes
+  // Infinity, the product becomes NaN, `NaN <= 0` is false, so the search drove
+  // lo upward every iteration and converged on the UPPER bound — reporting
+  // 409,500% annual on a deal with negative NPV. Every intermediate value is
+  // now checked for finiteness, and bracketing uses signs, never products.
+  let hi = 1.0;
+  for (let i = 0; i < 60 && f(hi) > 0; i++) hi *= 2;
+  const fHi = f(hi);
+  if (!Number.isFinite(fHi) || fHi > 0) return null;
 
-  for (let i = 0; i < 200; i++) {
-    const mid = (lo + hi) / 2;
-    if (f(lo) * f(mid) <= 0) hi = mid;
-    else lo = mid;
+  let lo = -0.5;
+  for (let i = 0; i < 60; i++) {
+    const v = f(lo);
+    if (!Number.isFinite(v)) return null; // cannot bracket without overflow
+    if (v > 0) break;
+    lo = (lo - 1) / 2; // step halfway toward -1
   }
+  const fLo = f(lo);
+  if (!Number.isFinite(fLo) || fLo <= 0) return null;
+
+  for (let i = 0; i < 300; i++) {
+    const mid = (lo + hi) / 2;
+    const v = f(mid);
+    if (!Number.isFinite(v)) return null;
+    if (v > 0) lo = mid;
+    else hi = mid;
+  }
+
   const monthly = (lo + hi) / 2;
-  return Math.round((Math.pow(1 + monthly, 12) - 1) * 10_000);
+  if (!Number.isFinite(monthly) || monthly <= -1) return null;
+  const annual = Math.pow(1 + monthly, 12) - 1;
+  if (!Number.isFinite(annual)) return null;
+  return Math.round(annual * 10_000);
 }
 
 export type UnderwriteInput = {
@@ -357,6 +384,55 @@ export type UnderwriteResult = {
  * seller's `priceBps` exceeds it, the deal does not clear — regardless of how
  * healthy the gross multiple looks.
  */
+export type Scenario = {
+  label: string;
+  legalShareBps: number;
+  grossRecoveryBps: number;
+  maxPriceBps: number;
+  clearsHurdle: boolean;
+  unacquirableAtAnyPrice: boolean;
+};
+
+/**
+ * Max price across the two most uncertain inputs.
+ *
+ * A single number implies a precision this model does not have. Its three most
+ * load-bearing inputs are a contradiction (legal share: 25% vs 48.2%), an
+ * unsourced estimate (the scrub half of up-front cost), and a placeholder
+ * (servicing). Quote a RANGE to a broker, not a point.
+ *
+ * `input.legalShareBps` and `input.grossRecoveryBps` are ignored — this sweeps
+ * them deliberately.
+ */
+export function stressTest(input: UnderwriteInput): Scenario[] {
+  const legalShares: Array<[string, number]> = [
+    ["plan L=25%", LEGAL_SHARE_BPS_PLAN],
+    ["moderate substitution L=35%", 3_500],
+    ["verified, no substitution L=48.2%", LEGAL_SHARE_BPS_VERIFIED],
+  ];
+  const recoveries: Array<[string, number]> = [
+    ["recovery −25%", Math.round(GROSS_RECOVERY_BPS * 0.75)],
+    ["recovery base", GROSS_RECOVERY_BPS],
+    ["recovery +25%", Math.round(GROSS_RECOVERY_BPS * 1.25)],
+  ];
+
+  const out: Scenario[] = [];
+  for (const [lLabel, legalShareBps] of legalShares) {
+    for (const [rLabel, grossRecoveryBps] of recoveries) {
+      const r = underwrite({ ...input, legalShareBps, grossRecoveryBps });
+      out.push({
+        label: `${lLabel} · ${rLabel}`,
+        legalShareBps,
+        grossRecoveryBps,
+        maxPriceBps: r.maxPriceBps,
+        clearsHurdle: r.clearsHurdle,
+        unacquirableAtAnyPrice: r.unacquirableAtAnyPrice,
+      });
+    }
+  }
+  return out;
+}
+
 export function underwrite(input: UnderwriteInput): UnderwriteResult {
   const {
     faceCents,
@@ -392,6 +468,27 @@ export function underwrite(input: UnderwriteInput): UnderwriteResult {
   ];
   for (const [name, v] of nonNegative) {
     if (!Number.isFinite(v) || v < 0) throw new Error(`${name} must be >= 0`);
+  }
+  // Upper bounds. Round 2 closed the negative-cost hole but left the parameter
+  // that most directly drives price unbounded: grossRecoveryBps = 50000 (a
+  // claimed 500% recovery) produced a recommendation to pay 235% of FACE for
+  // charged-off paper. The industry's best recover ~17%.
+  const atMostFace: Array<[string, number]> = [
+    ["grossRecoveryBps", grossRecoveryBps],
+    ["priceBps", priceBps],
+    ["servicingBps", servicingBps],
+  ];
+  for (const [name, v] of atMostFace) {
+    if (v > 10_000) throw new Error(`${name} must be <= 10000 (100% of face)`);
+  }
+  // retentionBps == 10000 means no decay at all — a flat annuity, not a
+  // collection curve, and it makes the schedule's rounding drift visible.
+  if (retentionBps >= 10_000) throw new Error("retentionBps must be < 10000");
+  if (!Number.isInteger(upfrontCentsPerAccount)) {
+    throw new Error("upfrontCentsPerAccount must be an integer number of cents");
+  }
+  if (!Number.isInteger(horizonMonths)) {
+    throw new Error("horizonMonths must be an integer");
   }
   if (accounts !== undefined) {
     if (!Number.isInteger(accounts) || accounts <= 0) {
@@ -440,6 +537,19 @@ export function underwrite(input: UnderwriteInput): UnderwriteResult {
     npvCents([0, ...netInflows], monthlyRateBps) - upfrontServicingCents;
   const cashflows = [-purchasePriceCents - upfrontServicingCents, ...netInflows];
 
+  const npv = npvCents(cashflows, monthlyRateBps);
+  let irr = irrAnnualBps(cashflows);
+
+  // NPV and IRR must agree about whether the deal clears: NPV < 0 at the hurdle
+  // implies IRR < hurdle, and vice versa. If they disagree the IRR search has
+  // gone wrong, and reporting NO number is safer than reporting a wrong one on
+  // a page someone uses to decide what to pay.
+  if (irr !== null) {
+    const disagrees =
+      (npv < 0 && irr > hurdleAnnualBps) || (npv > 0 && irr < hurdleAnnualBps);
+    if (disagrees) irr = null;
+  }
+
   return {
     purchasePriceCents,
     upfrontServicingCents,
@@ -453,8 +563,8 @@ export function underwrite(input: UnderwriteInput): UnderwriteResult {
     expectedNetCents,
     grossMultiple:
       purchasePriceCents > 0 ? expectedGrossCents / purchasePriceCents : Infinity,
-    npvCents: npvCents(cashflows, monthlyRateBps),
-    irrAnnualBps: irrAnnualBps(cashflows),
+    npvCents: npv,
+    irrAnnualBps: irr,
     maxPriceCents,
     maxPriceBps: Math.round((maxPriceCents * 10_000) / faceCents),
     clearsHurdle: purchasePriceCents <= maxPriceCents,
