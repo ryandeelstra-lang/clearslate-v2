@@ -3,7 +3,8 @@
 Durable record of what has been verified, what was wrong, and what is still open.
 Every figure carries a source. Nothing enters this file unverified.
 
-**Last updated:** 21 August 2026
+**Last updated:** 21 August 2026 (H3 gate sprint — corrections #8–#10 added,
+litigation-by-balance and licensing sections verified)
 
 ---
 
@@ -121,6 +122,28 @@ roughly half of all collections cases in the period.
 validity. Industry summary: debt buyers "make money only when cases go
 uncontested," on a model "built on scale, speed, and silence."
 
+### Litigation by balance size — verified 21 Aug 2026
+
+| Fact | Value | Source |
+| --- | --- | --- |
+| **Share of collection cases under $2,000** (UT, MN, MI) | **~50%** | [Pew, 2 Sep 2025](https://www.pew.org/en/research-and-analysis/articles/2025/09/02/debt-collection-lawsuits-surge-to-pre-pandemic-highs) |
+| Defendants with legal representation | <4% | Pew, *ibid.* (agrees with CRL's 98%+ unrepresented) |
+| Cost-model break-even to justify suit | $1,000–$1,600 (median ~$1,418) | Computed, `u8-litigation-economics.md` |
+| Same, California small claims | **$373** | *ibid.* |
+| Industry practice: large buyers | Avoid suing below ~$1,000 | Secondary, multiple |
+| Industry practice: small collectors | File at **$500–$750**, in batches | Secondary, multiple |
+| **Filing-rate differential by balance band** | **Does not exist in the public record** | Searched, not found |
+
+**Consequence — this is load-bearing.** Small balances are **litigated
+routinely**, not *de facto* exempt. The transition is a **gradient around
+$500–$1,500**, not a floor. Any hypothesis resting on "litigation is
+economically unavailable below $X" must be stated as a matter of *degree* and
+must quantify the differential — which nobody has published.
+
+The cost model and the empirical data disagree, and the empirical data wins.
+Likely reconcilers: attorney-fee shifting, small-claims filing, and
+portfolio-level cross-subsidy.
+
 **Precedent:** CFPB action against Encore covering 2009–2015 ended in **$52M** in
 fines and consumer refunds for filing thousands of inaccurate or unsupported debt
 lawsuits.
@@ -166,8 +189,37 @@ All pointing against the litigation channel.
 - **Washington My Health My Data Act** — private right of action, reaching
   purchase-derived health inferences. Transaction history contains pharmacy and
   clinic data.
-- **Licensing:** ~30 states, **6–18 months**. This is the long pole and belongs
-  in Phase 0.
+- **Licensing — revised 21 Aug 2026, see correction #9.** The "~30 states,
+  6–18 months" figure describes **full coverage**, not time to first purchase.
+  Verified paths:
+
+  | Coverage | Cost | Time |
+  | --- | --- | --- |
+  | Minimum viable — 5 states, 21% of US | **~$16,000** | **3–4 months** |
+  | Meaningful — 7 states, 36% of US | ~$70,000 | ~6 months |
+  | Strong — 10 states, 52% of US | ~$183,000 | 8–12 months |
+
+  **Ohio, Georgia and Virginia require no state collection-agency licence**
+  (corroborated across compliance sources; ~38 of 52 US jurisdictions do
+  license). Five states file via **NMLS**, allowing parallel applications.
+  *Unverified:* municipal requirements inside the no-licence states, net-worth
+  requirements, most processing times.
+- **RMAI CRB certification** is mandatory for **RMAI members**, and is **not** a
+  condition of operating as a debt buyer. `v2-plan.md` §U4 dropped that qualifier
+  and read as mandatory-to-operate. Cost cited at $1,500–$3,500 by secondary
+  sources; **not confirmed with RMAI**, timeline unknown.
+- **1099-C / cancellation-of-debt income.**
+  [26 CFR § 1.6050P-2(e)](https://www.law.cornell.edu/cfr/text/26/1.6050P-2):
+  *"lending money includes acquiring an indebtedness not only from the debtor at
+  origination but also from a prior holder."* **Debt buyers are applicable
+  entities.** Forgiveness ≥$600 is reportable (identifiable event Code F).
+  **De minimis escape, and its expiry date:** a new entity is outside the regime
+  if lending income is *both* <$5M *and* <15% of gross income. An early-stage
+  buyer likely sits outside it **and crosses in as it scales** — so a
+  forgiveness-based mechanic is clean at launch and generates exposure exactly
+  when volume makes it costly to unwind. **Do not build on the safe harbour.**
+  Form 982 insolvency exclusion fits this population but is **not automatic** —
+  the consumer must file it.
 
 ---
 
@@ -282,6 +334,30 @@ Recorded rather than silently amended, per project rules.
    The "market has not repriced yet, we are early" branch does not exist. Caught
    by the debt-buyer-intel specialist during re-review, before the plan was
    acted on.
+8. **H3 match arithmetic — clearing payment.** `h3-ownership-as-product.md` gave
+   the 4:1 clearing payment on a $4,237 balance as **$1,059.25**. That is
+   `face / R`; the correct divisor is `face / (R + 1)` = **$847.40**. The
+   document's own formula and its own "20¢ of face" label both gave the right
+   answer ($1,059.25 is 25¢ of face, and is the **3:1** figure). Net per account
+   was overstated at ~$618 against a true ~$406. **The error flattered the
+   product**, per rule 6. Caught while writing `core/portfolio.ts`; there is now
+   a regression test named for it.
+9. **Licensing timeline conflated with coverage.** `v2-plan.md` §U4 described
+   licensing as "~30 states, **6–18 months**… the long pole," and that framing was
+   repeated as grounds for a sequencing recommendation. The 6–18 month figure
+   describes **~30-state coverage**, not **time to first legal purchase**, which
+   is **3–4 months and ~$16,000** for a 5-state minimum-viable footprint — three
+   of those states requiring no licence at all. This error ran *against* the
+   business, which is likely why it survived unexamined for so long. Rule 6 cuts
+   both ways: an error that makes the business look *harder* than it is also
+   escapes scrutiny.
+10. **FTC pricing quoted without vintage.** Research output presented the FTC
+    study's 4.0¢ average / 7.9¢ (<3yr) / 2.2¢ (6–15yr) as market pricing. The
+    contracts studied were signed **July 2006 – June 2009** — 17–20 years old,
+    predating the post-2013 rise in paper prices. Reading 4.0¢ as current market
+    would have appeared to defuse the **primary kill criterion** ("sellers will
+    not clear at sub-5¢"). Today's range remains 5–15¢. See rule 2: never quote a
+    figure without its period.
 
 ---
 
