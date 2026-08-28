@@ -1,6 +1,8 @@
-# AI Rules — clearSlate (Fintech App)
+# AI Rules — ClearSlate (Debt-Buying Business)
 
-Rules an AI must follow when helping build this app. Goal: simplest solution, best practice, minimal tokens.
+Rules an AI must follow when helping build this business. Goal: simplest solution, best practice, minimal tokens.
+
+**Context:** This is a debt-buying and collections operation, not a consumer fintech app. Focus on underwriting, tape parsing, compliance with FDCPA/Reg F/state debt-buyer licensing, not card products or BaaS.
 
 ## Core principles
 - Ship the **simplest solution that works**. No speculative abstraction.

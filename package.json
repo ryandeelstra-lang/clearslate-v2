@@ -1,0 +1,17 @@
+{
+  "name": "clearslate-v2",
+  "version": "0.1.0",
+  "type": "module",
+  "description": "ClearSlate debt-buying simulation and underwriting",
+  "scripts": {
+    "test": "node --test core/**/*.test.ts",
+    "test:watch": "node --test --watch core/**/*.test.ts"
+  },
+  "dependencies": {
+    "seedrandom": "^3.0.5"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@types/seedrandom": "^3.0.8"
+  }
+}

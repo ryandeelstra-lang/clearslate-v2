@@ -1,14 +1,14 @@
 # CLAUDE.md — ClearSlate v2
 
-Project memory. Read this first, then [docs/rules.md](docs/rules.md).
+**Mission: get people out of debt by buying it and changing what they owe.**
+
+Read this first, then [docs/rules.md](docs/rules.md).
 
 ## What this is
 
-**ClearSlate** — getting people out of debt. This repo is a **fresh start**,
-carrying forward the decisions, research, and proven math from v1 while leaving
-its accumulated mistakes behind.
+**ClearSlate** — a debt-buying business that buys charged-off consumer debt at pennies on the dollar, then uses personalized match ratios and behavioral psychology to help people clear whole accounts. We own the paper, so unlike collection agencies, we can change the balance itself.
 
-**Mission: get people out of debt.**
+**Current hypothesis: H3 — Ownership as the product.** Buy small-balance fintech/BNPL debt where litigation is economically unviable, then treat the balance itself as the intervention. Use ML to set personalized match ratios per account (e.g., pay $1, we cancel $4 of what you owe), optimizing for **accounts closed** rather than dollars collected, because clearing whole accounts is what restores cognitive function and reduces anxiety.
 
 ## Binding Constraint
 
@@ -16,159 +16,124 @@ its accumulated mistakes behind.
 
 This is the operational constraint that guides the entire business. It structurally rules out revenue from late fees, penalties, or extended payment terms. The only way ClearSlate makes money is when people successfully reduce their debt principal — which perfectly aligns our incentives with helping people get out of debt.
 
-## The v2 thesis
+## The thesis (H3)
 
-**Use consumer psychology and machine learning to build a debt payoff plan per
-person — treating them like a human being, not a spreadsheet.** Two people with
-identical debt should get different payoff orders, payment sizes, timing, and
-language, because they are different people. The system learns what works for
-each of them.
+Every digital-first collections operator optimizes *messages about a fixed balance*. An owner can change the balance. That authority is unavailable to a contingency servicer at any level of engineering skill, and it is the only durable asymmetry we've identified.
 
-**Stance (decided):** psychology is used to *help people win at what they
-already want* — never to pressure, shame, or manufacture urgency. This is not
-only an ethics call: the research in `docs/research/findings.md` shows shame
-produces short-term compliance then long-term avoidance, and ~90% of these apps'
-users are gone within 30 days. The empathetic version is the one that retains.
+**Key insight:** A match ratio (pay $1, cancel $R of balance) costs only the forgiven face value, which we bought at ~5¢ per dollar. So a 3:1 match that lifts cash collections from 12.6¢ to 15¢ of face is profitable, even though it "gives away" 75% of the balance.
 
-**Allowed:** payday-aligned payments, streaks, plans sized to what someone will actually
-sustain, opt-in commitment devices, loss framing about interest *paired with a
-way out*.
-**Never:** shame, fake urgency, nudging toward debt that
-profits us, or hiding the math behind a recommendation.
+**Why accounts closed, not dollars collected:** Three independent literatures converge on account *count* as the governing variable:
+- **Ong et al., *PNAS* 2019:** Each account cleared → +0.25 SD cognitive function, −11% anxiety, −10% present bias
+- **Gal & McShane:** Proportion of accounts eliminated predicts staying debt-free better than dollars paid
+- **Mani et al., *Science* 2013:** The bandwidth mechanism — debt held as separate mental accounts
 
-## Accuracy, not modesty
+Clearing accounts is itself the highest-evidence rehabilitation intervention available. It requires no behavior change, no curriculum, no daily engagement.
 
-**We can use any incentive, framing, or mechanism that is legal, accurately
-described, and reduces principal — including ones that feel aggressive. The
-constraint is accuracy, not modesty. If a truthful version of a message is
-weaker than a false one, we ship the truthful one and improve it.**
+**The ML problem:** The right match ratio is per-account. Deep ratios for accounts unlikely to pay anything; shallow for accounts likely to pay well regardless. This is a contextual bandit maximizing accounts cleared subject to cash ≥ break-even.
 
-This rule exists to prevent two opposite failures. It rules out timidity: an
-offer is not disqualified for being bold, and "get people out of debt as fast as
-possible" is the goal. It also rules out the specific temptation that debt
-*ownership* creates — describing forgiveness of a claim we bought at pennies as
-though it were cash we contributed.
+## Asset class (U13, 27 Aug 2026)
 
-**Worked example, decided 21 August 2026.** A dollar-for-dollar match on a
-portfolio bought at ~5¢ per $1 face:
+**Buy fintech/BNPL-originated installment paper.**
 
-| Framing | Verdict |
-| --- | --- |
-| ~~"Every dollar you put in, we put in."~~ | **Rejected.** Implies we contribute cash. We forgive a claim that cost us a nickel. |
-| **"Every dollar you pay, we cancel two dollars of what you owe."** | **Approved.** Identical economics, fully truthful, and a better line — it foregrounds the balance falling. |
+**Why:**
+1. **Email is the channel of record** — digitally originated loans use email for application, disclosure, servicing. Bank card tapes frequently lack usable email.
+2. **Account-level provenance conveys** — the account *is* one transaction. No 12-statement media horizon problem.
+3. **Balances land where match works** — BNPL commonly $200–$800; fintech installment $1k–$5k. Clearing is reachable.
+4. **Within SOL, recent vintage** — no revival hazard from partial payments.
 
-The rejection is a legal call before it is an ethical one: FDCPA **§1692e(10)**
-bars deceptive means, judged in most circuits by the *least sophisticated
-consumer*, and the gap between "we contribute" and "we forgive" is material
-because it changes how generous the offer appears and who the consumer thinks we
-are. CFPB UDAAP sets a lower bar still. **Confirm with the legal gate before any
-match copy ships.**
+**De-prioritize:**
+- **Medical** — cheapest paper, best optics, but no levers left (credit reporting gone, litigation gone). Price signals recovery.
+- **Credit cards** — most modeled paper on earth, no structural edge over public buyers with actuarial teams.
+- **Telecom/utility** — thin media, declared market leader (JCAP bought $7.8B face in one transaction).
 
-Note what the example cost us: nothing. That is the usual result, and it is the
-reason this rule is cheap to hold.
-
-## Where things came from
-
-| Path | What it is |
-| --- | --- |
-| `core/` | **Pure, dependency-free logic ported from v1.** No DB, no framework, no imports beyond each other. This is the genuinely valuable code. |
-| `docs/` | Product vision, onboarding, features, roadmap, entity/legal — carried over unchanged. |
-| `docs/rules.md` | **Source of truth for AI behaviour on this project.** |
-| `docs/research/findings.md` | Sourced research with links. Drove v1's feature ranking. |
-| `docs/decisions/lessons-from-v1.md` | **Bugs, traps and process lessons. Read before writing code.** |
-| `docs/decisions/v2-plan.md` | **The live operating plan (rev. 2).** Hypotheses, gated unknowns, kill criteria. |
-| `docs/decisions/h3-ownership-as-product.md` | Draft hypothesis: the balance itself as the intervention. **Candidate rev. 3 — replaces H1 rather than amending it.** |
-| `docs/decisions/v1-CLAUDE.md` | The complete v1 decision log — mobile app, enforcement engine, card rails. |
+**Buy box:**
+- Class: Fintech/BNPL installment
+- Vintage: Charged off within 18 months
+- Balance: $200–$1,500, avg ≥$400
+- States: U4 minimum-viable licensing set only
+- SOL: Within SOL, ≥6 months headroom
+- **Contact: ≥60% with creditor-used email** (the gate — below this the business is one mailed letter)
 
 ## The `core/` modules
 
-All pure. All ported from working, exercised v1 code.
+All pure TypeScript. All tested. No framework dependencies.
 
-- `apr.ts` — interest, minimum payments, `payoffProjection`, two-scenario
-  comparison. **Independently verified**: $8,500 @ 24.99% paying $250 → 60
-  months, matching a from-scratch reimplementation.
-- `defaultApr.ts` — subtype-aware fallback rates + `isMortgage`. Exists because
-  v1 shipped a bug pricing a mortgage like a credit card.
-- `negotiate.ts` — rate-cut math and call script. Floors targets at a realistic
-  ~14%; skips cards already under ~16%.
-- `transfer.ts` — balance-transfer math. Models the fee **up front**, the 0%
-  intro window, and reversion. **Can return a net loss** — that's deliberate.
-- `fees.ts` — fee detection. Keeps genuinely-waivable fees separate from
-  interest charges, which are *not* waivable. Verified on synthetic data.
-- `categorize.ts` / `config.ts` — Plaid PFC → internal buckets, impulse buckets.
-- `framing.ts` — "$X = 18 tanks of gas".
-- `steps.ts` — the 5-step ladder, position derived live from finances.
-- `format.ts`, `payoffDate.ts` — money/date display helpers.
+- **`tape.ts`** — account-level tape parsing, the first per-account record type. Pre-purchase scoring only — no identity data (name, SSN, address, phone), no ECOA protected-class columns. Refuses to map those at parse. Reconciles face and count against seller's totals; detects duplicates. See U1/U13.
+- **`sol.ts`** — statute of limitations per account. The table ships covering NY and TX only (statutes read and cited); everything else is `unknown` = unbuyable. See U12.
+- **`segment.ts`** — per-balance-band economics and the buy-box wedge. Surfaces how per-account fixed costs dominate small balances. See U13 finding that JCAP states "lower balance accounts typically carry higher costs."
+- **`underwrite.ts`** — portfolio-level underwriting. Ceiling price per portfolio given gross recovery, servicing costs, legal share. Linear in face and accounts.
+- **`portfolio.ts`** — decay schedules, IRR, NPV. Money is integer cents; rates are integer basis points.
+- **`bridge.ts`** — IRR bridge showing what each structural choice does to return. Recomputes from parameters. See `docs/research/notes.md` for narrative version.
 
 ## Non-negotiables
 
-Carried from v1's `docs/rules.md` and reinforced by what went wrong:
-
 - **Money is integer cents. Never floats.** Convert at the boundary.
 - **Never let an estimate masquerade as a fact.** Label every assumed rate.
-- **When an error flatters the product, that's a signal.** Every v1 math bug
-  made ClearSlate look more necessary than it was.
+- **When an error flatters the product, that's a signal.** Every v1 math bug made ClearSlate look more necessary than it was. Same for v2.
 - **Never put words in a user's mouth** about facts you don't have.
-- **A feature isn't done until it's been looked at** — screenshots at desktop
-  and mobile, not just passing typechecks.
-- **An unreachable page isn't shipped.** Audit for inbound links.
-- Simplest thing that works. Match existing patterns. Ask before large
-  assumptions.
+- **Accuracy, not modesty.** We can use any incentive, framing, or mechanism that is legal, accurately described, and reduces principal. The constraint is accuracy, not modesty. If a truthful version of a message is weaker than a false one, we ship the truthful one and improve it.
+  - **Example:** A dollar-for-dollar match on a portfolio bought at ~5¢ per $1 face:
+    - ❌ "Every dollar you put in, we put in." (Implies we contribute cash)
+    - ✅ "Every dollar you pay, we cancel two dollars of what you owe." (Identical economics, fully truthful, better line)
 
-## Entity (unchanged from v1)
+## Open unknowns (Phase 0)
 
-ClearSlate LLC, Texas. EIN obtained — **note: v1 docs list it two different
-ways (42-2819082 and 42-2678974); reconcile before it's used anywhere.**
-Domain `clearslatedebit.com` is owned and Vercel-managed.
+See `docs/decisions/v2-plan.md` and `docs/decisions/h3-ownership-as-product.md` for full context.
 
-⚠️ The v1 Vercel project sits under an org named **"Alpha"**, which appears to be
-an employer account rather than a personal one. Worth resolving before real
-users or a database of financial data are attached to it.
+**Critical path:**
+- **U1** — Media rights specification (how many statements, format, warranty)
+- **U6** — Contact channel fill rate and fully-loaded servicing cost per account
+- **U7** — Does small-balance paper carry a litigation discount beyond cost? (Partial answer: JCAP says cost, not litigation)
+- **U10** — 1099-C exposure (cancellation-of-debt income)
+- **U11** — Does H3 make ClearSlate a "creditor" under Reg B? (Disparate impact exposure)
+- **U4 licensing** — ~30 states, 6–18 months, RMAI CRB. **The long pole.** Starts day one.
 
-## History
+**Kill criteria:**
+- Sellers will not clear at sub-5¢ (market is at 5.4¢ and falling)
+- U9 shows match does not lift cash collections above 12.6¢ voluntary baseline
+- U9 shows match increases disengagement
+- U10 finds unavoidable 1099-C exposure with no clean disclosure path
 
-Milestones only, oldest first. Source of record: **ClearSlate — Consolidated**
-([Drive](https://docs.google.com/document/d/1DsU8U5AmcMLznejXc65Xht4btPByOT3RpTiSOWgxm_c/edit),
-last modified 20 Aug 2026). ⚠️ marks a conflict that is not yet reconciled.
+## Current status
 
-- **ClearSlate LLC** — acquired. Texas, filed under Ryan Deelstra at 13201 Coleto
-  Creek Trail. SOSDirect credentials live in the Drive doc's Ops section.
-- **EIN** — obtained. ⚠️ The same doc lists **two**: `42-2819082` (Build Timeline)
-  and `42-2678974` (Ops, with an LLM summary naming it). Unreconciled.
-- **clearslatedebit.com** — acquired, Vercel-managed. ⚠️ Under a Vercel org named
-  "Alpha", which looks like an employer account.
-- **Plaid** — sandbox acquired, client ID on file. 🔴 Credentials exposed, see below.
-- **Unit (BaaS)** — sandbox complete. 🔴 Live admin token exposed, see below.
-- **Sandbox KYC test** — passed.
-- **Reg E dispute flow** — done, off Unit's template.
-- **Privacy Policy** — done, 28 May 2026. ⚠️ Promises delete/export endpoints that
-  do not exist.
-- **Marqeta** — not started.
-- **Business bank account** — not started.
-- **Sandbox card + ACH end-to-end test** — not started.
-- **Web app** — ⚠️ Drive Tab 2 says "Site is done"; this repo says never deployed
-  and the domain serves a static placeholder. Unreconciled.
-- **v2 pivot to debt buying** — Aug 2026. Rev. 2 plan, H1 gated, H3 opened.
-- **Debt-buyer licensing** (~30 states, 6–18 months, RMAI CRB) — **not started.
-  The long pole under every current hypothesis.**
+**Nothing shipped.** Phase 0 — filling unknowns, no portfolio capital committed. Licensing not started.
 
-### 🔴 Open security item
+**Recent milestones:**
+- H3 hypothesis opened (21 Aug 2026) — replaces H1, mutually exclusive on paper selection
+- U13 asset class research (27 Aug 2026) — recommends fintech/BNPL, de-recommends medical
+- U14 rehabilitation research (27 Aug 2026) — financial literacy is null; clearing accounts is the intervention
+- Corrected gross recovery from 16.8¢ to ~11–12¢ (JCAP SEC filings)
+- Built `tape.ts`, `sol.ts`, `segment.ts`, `underwrite.ts`, `bridge.ts` with full test coverage
 
-The Drive doc's *Ops — Legal & API* section contains a **live Unit admin token**
-(expires 30 May 2027; scopes include `payments-write`, `ach-payments-write`,
-`wire-payments-write`, `cards-sensitive`) and a **Plaid recovery code**, both in
-plaintext. Flagged 19 Aug 2026, still present 20 Aug. **Rotate both, delete the
-block, and purge Drive revision history.** Until then, treat the Unit org as
-compromised.
+**Next:**
+- Broker inquiry on fintech/BNPL paper (U7 pricing, U6 contact fill, U1 media)
+- Complete U4 licensing research for minimum-viable state set
+- Legal gate: U10 (1099-C) and U11 (Reg B)
 
-### What carries into the debt-buying business
+## Entity
 
-Most of the above was built for the **card** business. Under H1/H3, the LLC, EIN
-and domain carry. Unit, Marqeta, Reg E and the KYC flow **do not** — different
-regulatory surface entirely (FDCPA / Reg F / state debt-buyer licensing). Do not
-count that groundwork as progress against the current thesis.
+- **ClearSlate LLC** — Texas, filed under Ryan Deelstra at 13201 Coleto Creek Trail
+- **EIN:** 42-2819082
+- **Domain:** clearslatedebit.com (Vercel-managed)
 
-## Status
+## Where things are
 
-**Nothing built yet.** Repo initialised, context ported, awaiting the scope
-conversation.
+| Path | What it is |
+| --- | --- |
+| `core/` | **Pure, dependency-free underwriting and tape-parsing logic.** No DB, no framework. This is the genuinely valuable code. |
+| `docs/decisions/` | **Operating plans and hypotheses.** `v2-plan.md` (rev. 2), `h3-ownership-as-product.md` (draft H3), `lessons-from-v1.md` (what went wrong). |
+| `docs/research/` | **Sourced research.** `findings.md` (behavioral), `u13-asset-class-selection.md` (fintech/BNPL), `u14-rehabilitation.md` (accounts closed objective), `notes.md` (consolidated with corrections log). |
+| `docs/outreach/` | **Broker inquiry drafts.** Not sent yet. |
+| `docs/rules.md` | **Source of truth for AI behavior on this project.** Generic fintech rules — money as integer cents, validate input, no secrets in code. |
+| `.claude/agents/` | **Specialist agents.** Debt acquisition, legal, behavioral psychology, finance, collections operations, etc. |
+
+## What we are NOT building
+
+This is a debt-buying business, not:
+- ❌ A consumer fintech app with spending rules or behavioral analytics
+- ❌ A debit card or BaaS product
+- ❌ A financial literacy curriculum (0.1% of variance across 201 studies)
+- ❌ A human coaching service ($10,500–$23,135 per participant vs ~$27 account value)
+- ❌ A litigation-based collections shop
+
+If you see references to "spending rules," "round-ups," "card vault," "Plaid transactions," "BaaS," "Unit," or "Marqeta" — those are v1 artifacts and should be ignored or removed.

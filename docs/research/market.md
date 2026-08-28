@@ -8,16 +8,34 @@ already executing it. Their weakness is not their technology.
 
 ## The thesis has real evidence behind it
 
-**Personalized behavioral nudges outperform static financial education by 3× in
+> **🔴 RETRACTED 27 August 2026 — do not use the claim below.** It is struck
+> through rather than deleted, per project rules. Logged as correction 13 in
+> `notes.md`; full working in `u14-rehabilitation.md` §8.
+>
+> No CFPB publication carrying a 3× figure was located. The sole citation is a
+> vendor blog roundup, which cannot support "the consumer-protection regulator's
+> own research." **Second failed CFPB attribution in this repo.**
+>
+> **What replaces it, weaker and better:** Fernandes, Lynch & Netemeyer
+> ([*Management Science* 60(8), 2014](https://papers.ssrn.com/sol3/papers.cfm?abstract_id=2333898))
+> — 201 studies, 585,168 participants — find financial-literacy interventions
+> explain **0.1% of the variance** in financial behaviour, with weaker effects in
+> low-income samples and negligible effect past 20 months. Their proposed
+> alternative is *just-in-time* guidance attached to a specific decision. So the
+> **direction** holds: specific-and-timely beats curriculum. The **3× magnitude
+> has no source**, and the null on curricula is far better evidenced than any
+> claim for personalisation.
+
+~~**Personalized behavioral nudges outperform static financial education by 3× in
 behaviour change** — published CFPB research. Platforms that surface targeted,
 timely prompts against real transaction data close the gap between guidance and
-action.
+action.~~
 
-That is about as good a validation as this idea can get: the consumer-protection
+~~That is about as good a validation as this idea can get: the consumer-protection
 regulator's own research says personalization works better than the generic
-advice everyone else ships.
+advice everyone else ships.~~
 
-Source: [Miquido roundup of AI fintech](https://www.miquido.com/blog/ai-fintech-companies/)
+~~Source:~~ [Miquido roundup of AI fintech](https://www.miquido.com/blog/ai-fintech-companies/)
 
 ---
 
@@ -118,7 +136,11 @@ Sources: [Optimizely](https://www.optimizely.com/insights/blog/contextual-bandit
 ## Honest read
 
 **For us**
-- Regulator-backed evidence that personalization beats generic advice (3×).
+- ~~Regulator-backed evidence that personalization beats generic advice (3×).~~
+  **Retracted — see above.** What is left is a large, well-evidenced null on
+  *curricula* (0.1% of variance) and no measured effect size for personalisation.
+  That is an argument against everyone else's product, not yet an argument for
+  ours.
 - A specific, published, highly actionable behavioural lever (account-count
   progress) that most competitors ignore in favour of interest-rate math.
 - The market leader is monetizing the person in debt, badly, and users are

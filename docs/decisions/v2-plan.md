@@ -7,6 +7,63 @@ flawed*, 2 × *sound with changes*, 0 × *sound*. Rev. 1 is superseded, not patc
 
 ---
 
+## Amendments since rev. 2 — read before using any number below
+
+Recorded here rather than edited into the body, so that what the plan said and
+what later research found are both visible.
+
+### 27 August 2026 — U13 asset-class research (`docs/research/u13-asset-class-selection.md`)
+
+Source: Jefferson Capital (NASDAQ: JCAP) SEC filings — the first current filing
+from a debt buyer whose stated strategy *is* small-balance paper.
+
+1. **The entry-price model is too generous.** `portfolio.ts`'s
+   `GROSS_RECOVERY_BPS = 1680` derives from a 7¢ price × 2.4× multiple. The
+   market now transacts at **5.4¢** (JCAP H1 2026, down from 6.7¢ in H1 2025) at
+   **2.0–2.3×** US Distressed multiples. Implied gross recovery is **≈11–12¢ per
+   $1**, roughly 30% below the constant every ceiling in this repo was computed
+   from. **Every price ceiling printed to date is too high.** The correction is
+   proportional and is the highest-value piece of desk work outstanding.
+2. **The primary kill criterion is closer than it looked.** "Sellers will not
+   clear at sub-5¢" was written against a 7¢ base. The market is at 5.4¢ and
+   falling on rising supply. Sub-5¢ is no longer plainly outside the market.
+3. **U7 has a partial answer, and it is not the one H3 wanted.** JCAP states in
+   its 10-Q that "lower balance accounts typically carry higher costs and, as a
+   result, require higher purchase price multiples." A small-balance discount
+   exists — as **compensation for per-account cost**, not because the litigation
+   option is dead. If that is the whole explanation, it is not alpha.
+4. **The paper H3 wants has a specialist incumbent.** JCAP names its US focus as
+   installment loans, telecom, utilities, auto and **small-balance credit card**,
+   treats prime large-balance card as opportunistic, and claims barriers to
+   entry. H3's "this paper is neglected" premise is wrong.
+5. **Litigation is intensifying, not receding.** JCAP Q2 2026 court costs +74.6%
+   YoY; court costs plus legal commission are ~50% of servicing spend.
+
+### 27 August 2026 — U14 rehabilitation research (`docs/research/u14-rehabilitation.md`)
+
+Opened by a product decision to include rehabilitating the person, not by a gap
+in this plan.
+
+6. **Financial literacy is an established null** — 0.1% of variance across 201
+   studies and 585,168 participants, weakest in low-income samples, decayed by 20
+   months. This repo now holds three large nulls, and this is the biggest.
+7. **The debt relief is itself the rehabilitation intervention.** Each additional
+   *account* cleared: +0.25 SD cognitive function, −11% anxiety, −10% present
+   bias (PNAS 2019). Converges with Gal & McShane on **account count** as the
+   governing variable. **The H3 bandit should optimise accounts cleared subject
+   to cash ≥ break-even, not dollars collected.**
+8. **Employment services cannot be delivered, only referred** — $10,500–$23,135
+   per participant against a ~$27 account.
+9. **Retraction:** `market.md`'s "personalised nudges beat static financial
+   education by 3× — published CFPB research" does not survive checking. Second
+   failed CFPB attribution in this repo.
+
+**Net effect on the plan:** rev. 2's structure holds. Its arithmetic does not.
+Nothing here triggers a kill criterion outright, and item 1 makes every existing
+verdict worse. Do not quote a ceiling from this repo until it is recomputed.
+
+---
+
 ## What changed and why
 
 Rev. 1 proposed buying full-media charged-off paper, declining to litigate, and
@@ -177,6 +234,25 @@ bankruptcy/deceased/SCRA/attorney-represented scrubs, dispute verification under
 §1006.38, CFPB complaint response, high-risk merchant account, compliance.
 **Fill:** `______% Reg F-usable contact / $______ per account`
 
+### U13 — Which asset class *(new, 27 Aug 2026 — `u13-asset-class-selection.md`)*
+Rev. 2 and H3 both argue about balance band. Neither asked what *kind* of paper,
+and every price in this repo was credit-card-derived. Research recommends
+**fintech / BNPL-originated installment**, on two grounds unrelated to price: it
+is the only class where the originator's email is the channel of record (the only
+real answer to U6), and where account-level provenance conveys because the
+account *is* one transaction (U1's media-horizon problem does not arise).
+Medical is de-recommended — cheapest paper, best optics, no remaining lever once
+courts and credit reporting are both gone.
+**Fill:** `class ______ / email fill ______% / seller warrants prior use Y/N ______`
+
+### U14 — What rehabilitation can be delivered *(new, 27 Aug 2026 — `u14-rehabilitation.md`)*
+Not "does rehabilitation help" — it does — but what survives a $27 account.
+Answer: clearing whole accounts (core), just-in-time guidance (free), non-shaming
+copy (free), warm referral to WIOA/sectoral programmes (free). Not: any
+curriculum (null), any human coaching or delivered employment service
+(200–900× the value of an account).
+**Fill:** `referral conversion ______% / accounts-cleared objective modelled Y/N ______`
+
 ---
 
 ## Phases
@@ -228,6 +304,11 @@ constrained — decide the resale position before Phase 1, not here.**
 ## Kill criteria
 
 - **Sellers will not clear at sub-5¢.** Primary. Ends the thesis.
+  **Status 27 Aug 2026:** not triggered, and closer than written. The market is
+  transacting at 5.4¢ and falling (U13 §1). But note the criterion was set
+  against a 16.8¢ gross-recovery assumption that is now believed ~30% too high —
+  **the required entry price falls with it, so a market price we can meet is not
+  the same as a price that clears.** Recompute before treating this as passed.
 - **U1 returns no transaction-level history under any warranty** — any
   detail-dependent intervention is dead on data horizon regardless of price.
 - **U5 shows account detail on cold contact increases disengagement.** The

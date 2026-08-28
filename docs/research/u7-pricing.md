@@ -10,6 +10,17 @@
 
 **INSUFFICIENT PUBLIC DATA — REQUIRES BROKER CONVERSATION**
 
+> **SUPERSEDED IN PART, 27 August 2026.** A primary source has since been found:
+> Jefferson Capital's Q2 2026 10-Q states that "lower balance accounts typically
+> carry higher costs and, as a result, **require higher purchase price
+> multiples**" — i.e. small-balance paper *is* bought cheaper. **The discount
+> exists; the stated reason is cost, not dead litigation value**, which is the
+> opposite of what H3 needs. See `u13-asset-class-selection.md` §2.
+>
+> The section below remains accurate about what was and was not public *as of 21
+> August*. Its recommended broker question should now be asked in the sharper
+> form given in `u13-asset-class-selection.md` §7.
+
 No primary-source data was found comparing pricing for small-balance accounts (sub-$1,000) versus larger-balance accounts ($2,500–5,000) with same vintage and issuer tier. The FTC study, investor presentations, and public marketplace listings do not break out pricing by account balance size in the specific bands required to answer this question.
 
 ---

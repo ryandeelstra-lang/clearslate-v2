@@ -461,6 +461,31 @@ Recorded rather than silently amended, per project rules.
     would have appeared to defuse the **primary kill criterion** ("sellers will
     not clear at sub-5¢"). Today's range remains 5–15¢. See rule 2: never quote a
     figure without its period.
+12. **`GROSS_RECOVERY_BPS = 1680` is too high — every ceiling in this repo is
+    overstated.** The constant derives from a 7¢ price × 2.4× multiple. Jefferson
+    Capital's Q2 2026 10-Q — a debt buyer whose stated strategy *is* small-balance
+    paper — reports H1 2026 purchases at **5.4% of face** (from 6.7% a year
+    earlier) against US Distressed collection multiples of **2.0–2.3×**. Implied
+    gross recovery is **≈11–12¢ per $1, all-channel, courts included**, roughly
+    30% below the constant. Because `underwrite()` is linear in gross recovery,
+    every price ceiling printed to date is proportionally too generous — the
+    flattering direction, again. Caught by fetching an SEC filing that did not
+    exist when the constant was set: JCAP IPO'd in 2025. See correction 10 — the
+    same lesson, the same source type, six days later.
+    Full working: `docs/research/u13-asset-class-selection.md` §1.
+    ⚠️ 5.4¢ is company-wide across four countries and both business lines; the
+    2.0–2.3× is US Distressed only. Multiplying them mixes populations. The
+    figure is sound as "1680 is too high", not as a replacement constant.
+13. **"Personalised nudges beat static financial education by 3×, per published
+    CFPB research."** Asserted in `market.md` as "about as good a validation as
+    this idea can get." **Retracted.** The only citation is a vendor blog
+    roundup; no CFPB publication carrying a 3× figure was located. **Second
+    failed CFPB attribution in this repo** (the first was "< 0.5¢, 117 of 176
+    listings", retracted in `u7-pricing.md`) — both a specific number credited to
+    a regulator and sourced to something that was not the regulator. The
+    direction survives via Fernandes, Lynch & Netemeyer (2014), who recommend
+    just-in-time guidance over curricula; **the 3× magnitude has no source.**
+    See `docs/research/u14-rehabilitation.md` §8.
 
 ---
 

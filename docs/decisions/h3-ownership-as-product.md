@@ -116,11 +116,32 @@ because we own it."
 This is also the honest answer to "why is this defensible?" Not the model. The
 **authority to act on the model's output**, which competitors lack.
 
+> **Objective respecified, 27 Aug 2026 — `docs/research/u14-rehabilitation.md`.**
+> The bandit should maximise **the number of accounts brought to zero**, subject
+> to cash collections clearing break-even. Not dollars collected.
+>
+> Three independent literatures converge on account *count*, and none on dollars:
+> Gal & McShane (proportion of accounts eliminated predicts staying debt-free);
+> Ong, Theseira & Ng, *PNAS* 2019 (each additional account cleared: **+0.25 SD
+> cognitive function, −11% anxiety, −10% present bias**; GAD symptoms 78% → 53%);
+> Mani et al., *Science* 2013 (the bandwidth mechanism). Debt is held as separate
+> mental accounts — closing one releases bandwidth, reducing a balance does not.
+>
+> This is also what makes the rehabilitation claim in the pitch defensible rather
+> than aspirational: on the published evidence, **clearing accounts is itself the
+> highest-evidence rehabilitation intervention available.** It requires no
+> behaviour change, no curriculum and no daily engagement — which matters,
+> because `findings.md` establishes that demanding those is how this category
+> loses 90% of its users in 30 days.
+>
+> It is a modelling change, checkable against `portfolio.ts` today, and it does
+> not need a portfolio to test.
+
 ---
 
 ## Why the established nulls do not apply
 
-`notes.md:233` records two large, well-powered RCTs — five envelope treatments
+`notes.md:369-374` records two large, well-powered RCTs — five envelope treatments
 and nine social-norm/deterrence treatments — all ineffective, several worse than
 the original letter. Those results have killed a lot of ideas in this repo and
 they should be checked against every new one.
@@ -187,6 +208,20 @@ small-balance paper is systematically non-litigated, and prices accordingly, is
 registered as unverified below. If it is wrong, H3 has no paper to buy and the
 objection above is fatal.
 
+> **Class, added 27 Aug 2026 (`u13-asset-class-selection.md`).** This section
+> specifies a *size* and a *SOL status* but never a *kind*. U13 recommends
+> **fintech / BNPL-originated installment paper**, which satisfies H3's
+> requirements incidentally — small balances, recent vintage so comfortably
+> within SOL, written-contract clocks — but is chosen for two reasons H3 never
+> raised: the originator's email is the servicing channel of record (U6), and the
+> account *is* one transaction, so account-level detail conveys (U1).
+>
+> Note the interaction with the objection above: **U13 weakens the entry-price
+> case while strengthening the operating case.** H3 may end up buying paper it
+> can actually work at a price that reflects no litigation discount at all. That
+> is a different, and worse, bet than the one this document opened with — but it
+> is at least a bet whose mechanics function.
+
 ---
 
 ## Relationship to H1
@@ -210,6 +245,29 @@ plan should be rewritten around it rather than patched.
 Numbered continuing from rev. 2 (U1–U6).
 
 ### U7 — Does small-balance paper price below its face-adjusted peers?
+
+> **PARTIALLY ANSWERED, 27 Aug 2026 — and not in H3's favour.**
+> See `docs/research/u13-asset-class-selection.md` §2. Jefferson Capital's Q2
+> 2026 10-Q states that "older accounts and **lower balance accounts typically
+> carry higher costs and, as a result, require higher purchase price multiples**
+> to achieve the same net profitability." A higher required multiple is a lower
+> price per dollar, so **the discount is real** — the first primary-source
+> evidence on U7.
+>
+> **But the stated mechanism is cost, not litigation.** H3 needs the discount to
+> exist because the litigation option is worthless (so we surrender nothing). The
+> filing says it exists because per-account collection costs are higher on small
+> balances — the same flat-cost drag `segment.ts` was built to surface. **A
+> discount that compensates a cost we also bear is not an edge.**
+>
+> The residual question is narrower and still open: *is any part of the
+> small-balance discount attributable to the dead litigation option, over and
+> above the cost explanation?* That is now the broker question.
+>
+> Worse for the premise: JCAP names small-balance installment, telecom,
+> utilities and small-balance card as its **core** US strategy, claims barriers
+> to entry in it, and treats prime large-balance card as opportunistic. **The
+> paper H3 calls neglected has a specialist incumbent with a 20-year data set.**
 The load-bearing question. Compare $/face for sub-$1,000 accounts against
 $2,500–5,000 accounts of the same vintage, issuer tier, and channel. If small
 balances carry **no** discount, the litigation option is already priced at zero
@@ -238,6 +296,58 @@ tolerate silently. **Determine: does a debt buyer qualify as an applicable
 entity, and does the match structure change the answer?** Legal gate.
 **Fill:** `applicable entity Y/N ______ / disclosure required ______`
 
+### U11 — Does H3 make ClearSlate a "creditor" under Regulation B?
+**Legal gate. Previously unexamined — a grep across `docs/` and `.claude/` for
+ECOA, Reg B, disparate impact, fair lending, adverse action or proxy
+discrimination returned zero hits before this entry.**
+
+Two definitions collide with H3's mechanic:
+
+- **12 CFR §1002.2(m)** defines a "credit transaction" to expressly include
+  *"collection procedures."* ECOA's bar on discrimination by **sex and marital
+  status** therefore reaches how a debt is collected, not only how it is lent.
+- **12 CFR §1002.2(l)** defines a creditor to include one who regularly
+  participates in a credit decision "**including setting the terms of the
+  credit**." Setting the match ratio per account is setting terms.
+
+If both bite, the contextual bandit that sets R per account is a **fair-lending
+model**, and it inherits disparate-impact exposure, model-governance
+expectations, and possible adverse-action notice duties. This is independent of
+whether any protected-class variable is used as an input — disparate impact does
+not require intent, and balance/vintage/geography are all candidate proxies.
+
+Note the interaction with U10: both are triggered by the same act of forgiving
+principal per account.
+
+**Fill:** `creditor under §1002.2(l) Y/N ______ / disparate-impact review required ______ / adverse-action notice required ______`
+
+**Partial mitigation already in code.** `core/tape.ts` refuses to map a
+protected-class column into any scoring slot — `GENDER`, `SEX`, `RACE`,
+`ETHNICITY`, `MARITAL_STATUS`, `NATIONAL_ORIGIN`, `RELIGION`, `DISABILITY`,
+`AGE` and date-of-birth aliases all throw at parse. Nine of those eleven were
+mappable until 26 Aug 2026; a per-account model reading one would have been the
+exact exposure this unknown exists to flag, and it would have been invisible.
+
+This is **not** an answer to U11. It blocks the direct input only. Disparate
+impact does not require a protected-class variable — balance, vintage and
+geography are all candidate proxies, and every one of those is deliberately
+retained because pricing needs them. The legal question stands.
+
+### U12 — The state SOL table
+`core/sol.ts` exists and is correct, but **ships covering two jurisdictions (NY,
+TX)** because those are the only two whose statutes have been read and cited.
+Every other state resolves to `unknown`, which is unbuyable under H1 and H3
+alike. That is the honest default and it fails closed, but it also means the
+buy-box arithmetic currently declines most of any real tape for want of research
+rather than for want of merit.
+
+Filling the table is a **research deliverable, not a coding one**. Scope it to
+the U4 minimum-viable licensing states first, not all 51. Each row needs the
+statute, a primary-source URL, and a read date, or it does not ship — enforced
+by a test.
+
+**Fill:** `states researched ______ / of target set ______`
+
 ---
 
 ## Kill criteria
@@ -262,8 +372,16 @@ entity, and does the match structure change the answer?** Legal gate.
 Per `notes.md` source-quality rules, none of these enter that file until sourced.
 
 1. **Small-balance accounts are systematically not litigated and price at a
-   discount.** Plausible and load-bearing (U7/U8). Currently reasoning, not
-   evidence.
+   discount.** ~~Plausible and load-bearing (U7/U8). Currently reasoning, not
+   evidence.~~ **SPLIT AND PARTLY RESOLVED, 27 Aug 2026.** The claim was two
+   claims wearing one sentence:
+   - *They price at a discount* — **sourced** (JCAP 10-Q, U13 §2). Stands.
+   - *Because they are systematically not litigated* — **contradicted.** U8 found
+     half of collection suits in UT/MN/MI are sub-$2,000, and the filing
+     attributes the discount to cost, not to litigation value. JCAP's court costs
+     rose 74.6% YoY on a book built from exactly this paper.
+
+   The second half was the load-bearing one.
 2. **Match framing outperforms an equivalent flat settlement discount.**
    **Citation VERIFIED 21 Aug 2026; transfer REJECTED.** Karlan & List
    ([*AER* 97(5), 2007](https://www.aeaweb.org/articles?id=10.1257%2Faer.97.5.1774);

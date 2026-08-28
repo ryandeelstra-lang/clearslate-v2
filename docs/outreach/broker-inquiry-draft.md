@@ -10,38 +10,43 @@
 
 Hello,
 
-I'm writing on behalf of ClearSlate, a Texas-based debt buyer in the licensing phase. We're evaluating acquisition opportunities in the consumer charged-off credit card space and would appreciate indicative pricing guidance on two portfolio profiles to inform our buy-box and underwriting model.
+I'm writing on behalf of ClearSlate, a Texas-based debt buyer in the licensing phase. We're evaluating acquisition opportunities in consumer charged-off debt, specifically fintech-originated installment loans and buy-now-pay-later (BNPL) paper, and would appreciate indicative pricing guidance to inform our buy-box and underwriting model.
 
-We're specifically interested in understanding how pricing varies by account balance size, holding other characteristics constant.
+We're particularly interested in understanding pricing, contact data availability, and media rights for small-balance paper.
 
 ## Pricing inquiry
 
 For portfolios with the following characteristics:
-- **Debt type:** Consumer credit card, charged-off
+- **Debt type:** Fintech/BNPL installment loans, charged-off
 - **Vintage:** Charged-off within last 18 months
-- **Issuer tier:** National credit card issuers (Discover, Capital One, Synchrony, or comparable)
-- **Geography:** Mixed US, multiple states
-- **Prior collection activity:** First agency or fresh (no prior buyer)
+- **Originator type:** Digital lenders (Affirm, Klarna, Afterpay, or comparable fintech installment lenders)
+- **Geography:** Mixed US, multiple states (licensing-dependent)
+- **Prior collection activity:** First or second agency (not tertiary)
 - **Statute of limitations:** Within SOL in applicable states
+- **Balance range:** $200–$1,500, average balance ≥$400
 
-**What is the indicative price per dollar of face value for:**
+**What is the indicative price per dollar of face value for portfolios matching this profile?**
 
-1. **Portfolio A:** Average account balance $400–$800
-2. **Portfolio B:** Average account balance $2,500–$5,000
+If pricing varies significantly by sub-segment (e.g., point-of-sale vs. direct consumer loan, specific originator tiers, state mix), we'd appreciate understanding those dependencies.
 
-If balance-band pricing depends on other factors we haven't specified (e.g., state mix, whether accounts below a certain threshold are explicitly excluded from standard offerings), we'd appreciate understanding those dependencies.
+## Contact data specification
+
+For portfolios matching the profile above:
+
+1. **Email availability:** What percentage of accounts include an email address?
+2. **Email prior-use warranty:** Will the seller represent and warrant that the email address was used by the originator or immediately prior collector for servicing communications, per 12 CFR §1006.6(d)(4) (Reg F email safe harbor)?
+3. **Mobile availability:** What percentage include a mobile number with similar prior-use warranty?
+
+This is critical to our servicing model, which is digital-first with no outbound calling.
 
 ## Media rights specification
 
-For a portfolio matching either profile above, could you clarify the standard media rights and documentation that would convey with the trade?
+For a portfolio matching the profile above:
 
-Specifically:
-1. **Statement history depth:** How many months of statements back from charge-off?
-2. **Format:** Structured data (CSV/fields) or images (PDFs/scans)?
-3. **Free request cap:** How many document requests are included at no additional cost, and within what time window?
-4. **Per-document cost:** What is the fee per document after the free cap is exhausted?
-5. **Seller obligation duration:** How long after closing does the seller's obligation to provide requested documents survive?
-6. **Accuracy warranty:** What warranty, if any, attaches to the accuracy of the media provided?
+1. **Account-level detail:** What transaction-level or origination detail conveys with the account? (Since BNPL/fintech accounts are typically single-transaction loans, we're asking what fields beyond balance, charge-off date, and originator name are included.)
+2. **Format:** Structured data (CSV/database fields) or documents (PDFs/images)?
+3. **Request rights:** If origination documents (loan agreement, merchant invoice, payment history) are available on request, what is the per-document cost and seller's obligation window?
+4. **Accuracy warranty:** What warranty, if any, attaches to the account balance and origination details?
 
 ## Background
 
@@ -63,4 +68,5 @@ ClearSlate LLC
 - Replace bracketed placeholders with actual contact details before sending
 - Consider calling instead of emailing if faster turnaround is needed
 - Send to 2–3 brokers/sellers to triangulate responses
-- Candidate recipients: Debexpert (broker approval required), DebtTrader (requires vetting), or direct sellers like Synchrony, Discover, Capital One servicing/recovery divisions (harder to reach but primary sources)
+- Candidate recipients: Debexpert (broker approval required), DebtTrader (requires vetting), or direct outreach to fintech lenders' recovery/collections divisions
+- This inquiry addresses U1 (media), U6 (contact data), and U7 (pricing) from the Phase 0 unknowns
