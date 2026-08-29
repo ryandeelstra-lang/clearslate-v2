@@ -1,5 +1,22 @@
 # Virtual World Simulation Results
 
+> # ⚠️ RETRACTED — 28 Aug 2026
+>
+> **Every recovery, ROI and profit figure below is withdrawn.** They came from
+> sigmoid parameters tuned outside their own stated uncertainty range, in the
+> flattering direction, on a single seed. Run honestly across the stated ranges,
+> **P(clears break-even) is 0.0% at every ratio.**
+>
+> The break-even bar quoted below (11.25¢) is also wrong for this portfolio; it
+> is **11.07¢**.
+>
+> What survives: the framework itself, the distribution generators, the
+> operational cost model, and the determinism. What does not survive: every
+> number it produced about viability.
+>
+> See [`research/u9-stress.md`](research/u9-stress.md). Retained unedited as a
+> record of what was claimed.
+
 ## Summary
 
 Built a complete simulation framework to test the H3 debt-buying hypothesis with realistic market distributions. **Key finding: Match ratio R=3 achieves 10.42¢ recovery (just under 11.25¢ break-even), 2.85× lift over baseline, 54.5% ROI.**

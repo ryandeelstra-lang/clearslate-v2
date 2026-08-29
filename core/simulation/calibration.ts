@@ -173,18 +173,47 @@ export const CONSUMER_BEHAVIOR = {
     },
   ],
 
-  /** Match ratio response (sigmoid model) */
+  /**
+   * Match ratio response (sigmoid model).
+   *
+   *     P(pay | ratio = R) = 1 / (1 + exp(-k(R - R₀)))
+   *
+   * ⚠️ CORRECTED 28 Aug 2026 — READ BEFORE QUOTING ANY NUMBER FROM THIS MODEL.
+   *
+   * These values were previously `baseline_k: 1.5, baseline_R0: 1.5`, sitting
+   * OUTSIDE their own stated ranges below — k above its ceiling, R₀ below its
+   * floor. Both directions mean MORE PEOPLE PAY: a steeper sigmoid, reaching
+   * 50% payment at a shallower ratio. The comment above them read "Calibrated
+   * to produce ... R=3 target: >11¢ to beat break-even."
+   *
+   * The parameters had been tuned until the model returned the answer the
+   * thesis needed, and the honest range was left underneath, contradicting
+   * them. Every headline this repo published — "R=2 clears break-even at
+   * 11.66¢", "74% ROI" — came from that tuned point on a single seed.
+   *
+   * Measured cost of the tuning at R=2, median of 15 seeds:
+   *     tuned    k=1.5 R₀=1.5  →  10.50¢
+   *     in-range k=0.8 R₀=2.5  →   5.95¢
+   * The tuning was worth 4.55¢, against a break-even bar of 11.07¢. It was the
+   * entire margin and then some.
+   *
+   * Restored to k=0.8 / R₀=2.5 — inside the stated ranges, and the values that
+   * were here before the tuning. They are still an UNSOURCED PRIOR: nobody has
+   * measured a match-response sigmoid on real charged-off paper. That is U9,
+   * and it is unfilled. Use `core/simulation/stress/u9.ts` for any viability
+   * question; never a single run at the point estimate.
+   */
   match_elasticity: {
-    // P(pay | ratio=R) = 1 / (1 + exp(-k(R - R₀)))
-    // Calibrated to produce:
-    // - R=0 baseline: ~6¢ (11.5¢ × 0.518 voluntary)
-    // - R=3 target: >11¢ to beat break-even
-    baseline_k: 1.5, // sensitivity (steeper = more elastic)
-    baseline_R0: 1.5, // inflection point (50% pay at R=1.5, aggressive)
+    baseline_k: 0.8, // sensitivity (steeper = more elastic)
+    baseline_R0: 2.5, // inflection point (50% pay at R=2.5)
 
-    // Uncertainty for probabilistic model
+    // Stated uncertainty. The point estimates above MUST stay inside these —
+    // pinned by a test in stress/u9.test.ts.
     k_range: [0.5, 1.2] as [number, number],
     R0_range: [2.0, 3.5] as [number, number],
+
+    /** The superseded tuned point. Kept only so the stress report can show the delta. */
+    superseded_tuned_point: { k: 1.5, R0: 1.5 },
   },
 } as const;
 

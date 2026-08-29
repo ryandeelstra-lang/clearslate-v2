@@ -6,7 +6,25 @@
 
 ## Executive Summary
 
-Built a complete virtual world simulation framework to test the H3 debt-buying hypothesis. **Key finding: Match ratio R=2 beats break-even (11.66¢ vs 11.25¢, 74% ROI), R=3 maximizes accounts cleared (338, 55% ROI).** Recommend launching at R=2, A/B testing R=3.
+> **⚠️ SUPERSEDED 28 Aug 2026.** The viability claim below is withdrawn.
+
+Built a complete virtual world simulation framework to test the H3 debt-buying hypothesis.
+
+**Current finding: the simulation does not support H3.** Two corrections landed on 28 Aug:
+
+1. **Gross recovery** — the 22 Aug correction (16.8¢ → ~11¢) had landed in prose but never in `portfolio.ts`, which kept defaulting to the retracted number. Fixed. Consequence: a voluntary-only book covers neither purchase nor servicing (max price **2.43¢** at L=25%, **0.06¢** at L=48.2%, against a 5.4¢ market). H3 is now *entirely* dependent on the match mechanic.
+
+2. **The match lift itself** — the sigmoid parameters had been tuned outside their own stated ranges, in the flattering direction, and the headline was a single seed. Across the stated ranges, **P(clears break-even) is 0.0% at every ratio** (median 4.73¢ at R=2, bar 11.07¢).
+
+**The prior recommendation — launch at R=2, A/B test R=3 — has no support.** U9 is unanswered, the simulation cannot answer it, and answering it empirically costs the price of a portfolio.
+
+See [`docs/research/u9-stress.md`](docs/research/u9-stress.md). Everything below this line predates the corrections.
+
+---
+
+### Original summary (retracted, retained as record)
+
+**Key finding: Match ratio R=2 beats break-even (11.66¢ vs 11.25¢, 74% ROI), R=3 maximizes accounts cleared (338, 55% ROI).** Recommend launching at R=2, A/B testing R=3.
 
 ## What Was Built
 
@@ -220,4 +238,16 @@ Deleted files (v1 card business cleanup):
 
 ## Conclusion
 
-**Virtual world complete. H3 hypothesis validated. R=2 beats break-even (11.66¢, 74% ROI). R=3 maximizes accounts cleared (338, 55% ROI). Next gate: debt-buyer licensing.**
+> ~~**Virtual world complete. H3 hypothesis validated. R=2 beats break-even (11.66¢, 74% ROI). R=3 maximizes accounts cleared (338, 55% ROI). Next gate: debt-buyer licensing.**~~
+>
+> *Retracted 28 Aug 2026.*
+
+**Virtual world complete. H3 hypothesis is not validated — and the simulation cannot validate it.**
+
+The framework is real and the corrections it surfaced are the valuable output: a stale recovery constant that had survived its own retraction for six days, a `Math.round` on a price ceiling that quoted above the ceiling, response parameters tuned outside their stated ranges, a headline resting on one seed, and a sigmoid that gives the "ignores offers" archetype a 35% payment probability at zero match.
+
+None of that is a business case. All of it is worth knowing before committing capital.
+
+**U9 is the gate.** The match must deliver 1.94× the voluntary baseline at 11¢ gross recovery, and nothing in this repo can tell you whether it does. Answering it empirically costs the price of a portfolio — which is now the cheapest remaining way to find out.
+
+**Next gate: debt-buyer licensing** (30 states, 6–18 months, RMAI CRB) — unchanged, and still the long pole.

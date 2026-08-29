@@ -10,7 +10,7 @@ import { H3_BASELINE } from "../scenarios/h3-baseline.ts";
 import { assignArchetypes, analyzeArchetypes } from "./consumer.ts";
 import { matchResponseProbability } from "./match-response.ts";
 import { simulateAllPayments, aggregatePaymentStats } from "./payment.ts";
-import { H3_TARGETS, MARKET_PARAMS } from "../calibration.ts";
+import { H3_TARGETS, MARKET_PARAMS, CONSUMER_BEHAVIOR } from "../calibration.ts";
 
 test("Archetype distribution matches calibration", () => {
   const rng = seedrandom("archetype-test");
@@ -55,12 +55,70 @@ test("Match-response sigmoid: R=0 < R=1 < R=2 < R=3", () => {
     );
   }
 
-  // Strategic settlers (2× sensitive) with baseline R0=1.5 and k=1.5
-  // Should have strong response by R=2
+  // Assert STRUCTURE, not magnitude.
+  //
+  // This previously asserted P(R=2) > 50% for strategic settlers, which was
+  // true only at the tuned k=1.5/R0=1.5 point. The magnitudes this model emits
+  // are an unsourced prior (U9 is unfilled) — pinning them just re-pins
+  // whatever the parameters happened to be. What IS guaranteed by construction
+  // is the ordering: a more match-sensitive archetype must respond more at any
+  // given ratio. See docs/research/u9-stress.md.
+  // Ordering holds only ABOVE the inflection point. See the defect note below.
+  const R0 = CONSUMER_BEHAVIOR.match_elasticity.baseline_R0;
+  for (const R of [R0 + 0.5, R0 + 1.5, R0 + 2.5]) {
+    const settler = matchResponseProbability("strategic_settler", R);
+    const avoider = matchResponseProbability("avoider", R);
+    assert(
+      settler > avoider,
+      `at R=${R}, strategic settlers (${(settler * 100).toFixed(1)}%) must respond ` +
+        `more than avoiders (${(avoider * 100).toFixed(1)}%)`,
+    );
+  }
+});
+
+/**
+ * ⚠️ KNOWN DEFECT, documented rather than silently pinned as correct.
+ * Found 28 Aug 2026 — see docs/research/u9-stress.md "Finding 4".
+ *
+ * `match_sensitivity` scales the sigmoid's STEEPNESS (k) and nothing else, so
+ * every archetype's curve passes through exactly 50% at R = R₀. Two wrong
+ * consequences:
+ *
+ *  1. Avoiders — documented as "ignores offer regardless of ratio" — sit at
+ *     35.4% payment probability with NO match offered, and 35–65% across the
+ *     whole range. They are the flattest curve, not the lowest one.
+ *  2. Below R₀ the ordering INVERTS: the least match-sensitive archetype has
+ *     the HIGHEST payment probability.
+ *
+ * Avoiders are 37.5% of the book, so this inflates cash — the flattering
+ * direction. It is NOT fixed here because every candidate fix (per-archetype
+ * ceiling, per-archetype R₀ shift) requires inventing parameters nobody has
+ * measured, and would just produce different unvalidated numbers. Resolve it
+ * when U9 field data arrives and can discipline the choice.
+ *
+ * This test asserts the defect EXISTS, so that fixing it fails loudly here and
+ * whoever fixes it must update the docs rather than quietly changing outputs.
+ */
+test("KNOWN DEFECT: sensitivity scales steepness only, so curves cross at R₀", () => {
+  const R0 = CONSUMER_BEHAVIOR.match_elasticity.baseline_R0;
+
+  const avoiderAtZero = matchResponseProbability("avoider", 0);
   assert(
-    probs[2] > 0.50,
-    `P(R=2) = ${(probs[2] * 100).toFixed(1)}% should be >50% for strategic settlers`,
+    avoiderAtZero > 0.25,
+    `Avoider P(pay) at R=0 is ${(avoiderAtZero * 100).toFixed(1)}%. If this dropped, ` +
+      `the level defect was fixed — update docs/research/u9-stress.md Finding 4 ` +
+      `and re-run the U9 stress report, because cash estimates will have moved.`,
   );
+
+  // All archetypes meet at 50% on the inflection point — the root cause.
+  for (const a of ["strategic_settler", "avoider", "early_responder"] as const) {
+    const p = matchResponseProbability(a, R0);
+    assert(
+      Math.abs(p - 0.5) < 1e-9,
+      `${a} is ${(p * 100).toFixed(1)}% at R=R₀, expected exactly 50% under the ` +
+        `current steepness-only model`,
+    );
+  }
 });
 
 test("Baseline (R=0) recovers 3-5¢ per dollar (model calibration)", () => {
@@ -172,14 +230,16 @@ test("Avoiders have low payment rate, early responders high", () => {
   console.log(`  Avoider payment rate: ${(avoider_stats.payment_rate * 100).toFixed(1)}%`);
   console.log(`  Early responder payment rate: ${(responder_stats.payment_rate * 100).toFixed(1)}%`);
 
-  // Test relative difference, not absolute values (model calibration varies)
+  // Ordering only — no multiple, no absolute floor.
+  //
+  // This previously required responders to be ≥1.5× avoiders and to clear a
+  // 50% payment rate. Both held only at the tuned parameters; at the in-range
+  // values the ratio is ~1.35×. The multiple is an artefact of parameters
+  // nobody has measured, so asserting it pins the tuning rather than the model.
+  // Ordering is guaranteed by construction and is the real claim.
   assert(
-    responder_stats.payment_rate > avoider_stats.payment_rate * 1.5,
-    `Early responders (${(responder_stats.payment_rate * 100).toFixed(1)}%) should be ≥1.5× avoiders (${(avoider_stats.payment_rate * 100).toFixed(1)}%)`,
-  );
-
-  assert(
-    responder_stats.payment_rate > 0.50,
-    "Early responders should have >50% payment rate",
+    responder_stats.payment_rate > avoider_stats.payment_rate,
+    `Early responders (${(responder_stats.payment_rate * 100).toFixed(1)}%) must ` +
+      `out-pay avoiders (${(avoider_stats.payment_rate * 100).toFixed(1)}%)`,
   );
 });

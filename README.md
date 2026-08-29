@@ -6,12 +6,16 @@ A debt-buying business that buys charged-off consumer debt at pennies on the dol
 
 ## Status
 
-**Virtual world simulation complete.** H3 hypothesis validated:
-- **R=2 maximizes cash**: 11.66¢ recovery, 74% ROI (beats 11.25¢ break-even)
-- **R=3 maximizes accounts cleared**: 338 accounts (33.8%), 55% ROI, 10.42¢ recovery
-- **Recommendation**: Launch at R=2 (proven break-even), A/B test R=3
+**Simulation framework complete. It does not support H3.**
 
-See [STATUS.md](STATUS.md) for full analysis.
+Two corrections on 28 Aug 2026 removed the case that had been claimed:
+
+- **Gross recovery.** The 22 Aug correction (16.8¢ → ~11¢) had landed in the docs but never in `portfolio.ts`, which kept defaulting to the retracted number. Now fixed, with no default at all — callers pass it explicitly. Consequence: a voluntary-only book covers neither purchase nor servicing (max affordable price **2.43¢**, or **0.06¢** under the verified legal share, against a **5.4¢** market).
+- **The match lift.** The response-model parameters had been tuned *outside their own stated uncertainty ranges*, in the flattering direction, and the published figure was a single seed. Swept honestly, **P(clears break-even) is 0.0% at every ratio.**
+
+This does not prove H3 fails — the behavioural model has never met a real response. It proves the simulation cannot be used to argue H3 works. **U9 is the gating unknown, and answering it costs the price of a portfolio.**
+
+Full detail: [`docs/research/u9-stress.md`](docs/research/u9-stress.md) · reproduce with `node core/simulation/stress/u9-report.ts`
 
 **Next gate**: Debt-buyer licensing (30 states, 6-18 months, RMAI CRB)
 
@@ -82,23 +86,22 @@ docs/
 
 ## Key Results
 
-### H3 Baseline at R=3 (1,000 accounts, $660k face)
-- Purchase: $35,671 (5.4¢)
-- Cash collected: $68,849 (10.42¢)
-- Accounts cleared: 338 (33.8%)
-- Net profit: $19,453
-- ROI: 54.5%
+### H3 Baseline, 1,000 accounts, $660k face
 
-### Match Elasticity (R=0 to R=5)
-| R | Cash/Face | Cleared | Net Profit | ROI |
-|---|-----------|---------|------------|-----|
-| 0 | 3.65¢ | 20 | -$21,858 | -61% ❌ |
-| **2** | **11.66¢** | **269** | **$26,428** | **74%** ✅ |
-| 3 | 10.42¢ | 338 | $19,453 | 55% |
+**Break-even: 11.07¢ per dollar** (5.40¢ purchase + 5.41¢ servicing + 0.26¢ up-front)
 
-**Break-even**: 11.25¢ per dollar  
-**R=2 clears break-even** (0.41¢ above)  
-**R=3 marginally below** (0.83¢ below, within model noise)
+Monte Carlo across the model's own stated parameter ranges — 60 trials per ratio, sampling the response sigmoid plus price, servicing and up-front cost:
+
+| R | P10 | Median | P90 | Cleared | **P(clears break-even)** |
+|---|-----|--------|-----|---------|--------------------------|
+| 1 | 1.94¢ | 3.98¢ | 6.23¢ | 57 | **0.0%** |
+| 2 | 2.65¢ | 4.73¢ | 6.98¢ | 107 | **0.0%** |
+| 3 | 4.38¢ | 6.28¢ | 7.75¢ | 203 | **0.0%** |
+| 4 | 5.93¢ | 6.74¢ | 7.89¢ | 267 | **0.0%** |
+
+Even the P90 of the best ratio falls ~3¢ short. The single parameter that moves this most is the sigmoid inflection point R₀ (4.28¢ of swing) — **nine times more than purchase price** — and it is the one thing nobody has measured.
+
+Earlier versions of this file reported 11.66¢ and 74% ROI at R=2. That came from tuned parameters on one seed and is retracted; see the status section above.
 
 ## What This Is NOT
 

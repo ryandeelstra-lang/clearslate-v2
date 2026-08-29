@@ -14,12 +14,24 @@
 import { CONSUMER_BEHAVIOR, type ConsumerArchetype } from "../calibration.ts";
 import { getArchetype } from "./consumer.ts";
 
+/**
+ * Sigmoid parameters. Exposed so the U9 stress harness can sweep the stated
+ * uncertainty ranges instead of the tuned point estimate — see
+ * `core/simulation/stress/u9.ts` and the warning in calibration.ts.
+ */
+export interface ElasticityParams {
+  k: number;
+  R0: number;
+}
+
 /** Compute probability of payment given match ratio and archetype */
 export function matchResponseProbability(
   archetype: ConsumerArchetype,
   matchRatio: number,
+  params?: ElasticityParams,
 ): number {
-  const { baseline_k, baseline_R0 } = CONSUMER_BEHAVIOR.match_elasticity;
+  const baseline_k = params?.k ?? CONSUMER_BEHAVIOR.match_elasticity.baseline_k;
+  const baseline_R0 = params?.R0 ?? CONSUMER_BEHAVIOR.match_elasticity.baseline_R0;
 
   // Adjust sensitivity by archetype
   const sensitivity = getArchetypeSensitivity(archetype);

@@ -1,5 +1,33 @@
 # Match Ratio Analysis
 
+> # ⚠️ RETRACTED — 28 Aug 2026
+>
+> **Every number below is withdrawn. Do not quote this document.**
+>
+> The figures came from sigmoid parameters tuned *outside their own stated
+> uncertainty range*, in the flattering direction, evaluated on a **single
+> seed**. Two independent problems:
+>
+> - **Tuning.** `baseline_k` was 1.5 against a stated range of [0.5, 1.2];
+>   `baseline_R0` was 1.5 against [2.0, 3.5]. Both mean more people pay. The
+>   tuning was worth **4.55¢** at R=2 — more than the entire margin being
+>   claimed.
+> - **Single seed.** Across 25 seeds at those same tuned parameters, R=2 spans
+>   9.55–11.83¢ with a **median of 10.68¢**, clearing the bar in **5 of 25
+>   seeds**. The 11.66¢ headline was near the top of the distribution.
+>
+> Run honestly across the stated ranges, **P(clears break-even) is 0.0% at every
+> ratio**, with a median of 4.73¢ at R=2 against an 11.07¢ bar.
+>
+> The correct bar is **11.07¢**, not the 11.25¢ used below — that assumed a $400
+> average balance; this portfolio averages $661.
+>
+> **The strategic recommendation below (launch at R=2, A/B test R=3) has no
+> support.** See [`docs/research/u9-stress.md`](research/u9-stress.md).
+> Reproduce: `node core/simulation/stress/u9-report.ts`.
+>
+> Retained unedited as a record of what was claimed.
+
 ## Summary
 
 **R=2 maximizes cash (11.66¢, exceeds break-even). R=3 maximizes accounts cleared (338 vs 269). H3 should target R=2-3 range based on strategic priority: profit (R=2) vs rehabilitation (R=3).**

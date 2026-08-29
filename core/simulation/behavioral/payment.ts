@@ -11,7 +11,7 @@ import type { TapeAccount } from "../../tape.ts";
 import type { RNG } from "../types.ts";
 import type { ConsumerArchetype } from "../calibration.ts";
 import { getArchetype } from "./consumer.ts";
-import { matchResponseProbability } from "./match-response.ts";
+import { matchResponseProbability, type ElasticityParams } from "./match-response.ts";
 import { boxMuller } from "../generators/balance.ts";
 
 /** Payment outcome for one account */
@@ -31,6 +31,7 @@ export function simulatePayment(
   archetype: ConsumerArchetype,
   matchRatio: number,
   rng: RNG,
+  elasticity?: ElasticityParams,
 ): PaymentOutcome {
   const behavior = getArchetype(archetype);
 
@@ -62,7 +63,7 @@ export function simulatePayment(
   }
 
   // 3. Match ratio evaluation (sigmoid)
-  const payProbability = matchResponseProbability(archetype, matchRatio);
+  const payProbability = matchResponseProbability(archetype, matchRatio, elasticity);
   const willPay = rng() < payProbability;
 
   if (!willPay) {
@@ -109,6 +110,7 @@ export function simulateAllPayments(
   archetypes: ConsumerArchetype[],
   matchRatio: number,
   rng: RNG,
+  elasticity?: ElasticityParams,
 ): PaymentOutcome[] {
   if (accounts.length !== archetypes.length) {
     throw new Error(
@@ -118,7 +120,9 @@ export function simulateAllPayments(
 
   const outcomes: PaymentOutcome[] = [];
   for (let i = 0; i < accounts.length; i++) {
-    outcomes.push(simulatePayment(accounts[i], archetypes[i], matchRatio, rng));
+    outcomes.push(
+      simulatePayment(accounts[i], archetypes[i], matchRatio, rng, elasticity),
+    );
   }
 
   return outcomes;
