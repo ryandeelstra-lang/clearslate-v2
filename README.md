@@ -19,20 +19,29 @@ Then a third correction partly reversed the second:
 
 **With that corrected, H3 clears at R=3–4 under honest untuned parameters.** H3 does not fail on behaviour; it failed on an inherited cost placeholder.
 
-**But the binding constraint moved to scale.** Annual fixed costs (software, ~30 state licences, compliance, staffing) amortise over volume:
+**The constraint is scale — but far less of it than first modelled.** A fourth correction, prompted by the question *"why does it cost any money to maintain?"*, found that the annual-cost model had priced an **incumbent**: 30 state licences, a bought collections platform, compliance and ops headcount. None of those apply.
 
-| Annual accounts | Servicing | Verdict |
-|---|---|---|
-| 1,000 | 14.68–66.18¢ | hopeless at any ratio |
-| 25,000 | 0.76–2.97¢ | clears at the low bound |
-| 100,000 | 0.33–0.99¢ | clears |
+| | Incumbent assumption | Actual (lean) | Overstated |
+|---|---|---|---|
+| Licensing | $21k–75k (30 states) | **$375–1,425** | 15–50× |
+| Software | $4.8k–60k (Katabat/Tratta) | **$800–1,200** (self-built) | 6–60× |
+| Ops staff | $45k–180k | **$0** (34 disputes/yr) | — |
+| **Annual** | **$95,788–434,988** | **$11,175–30,625** | **9–14×** |
 
-**The pilot that would answer U9 empirically is exactly what the economics cannot support.** A 1,000-account test costs ~$36k to buy and carries $96k–$437k of annual fixed cost. Reaching 100k accounts/year means ~$66M of face and ~$3.6M of purchase capital.
+Texas requires a $10,000 bond and **no licence**. New York State requires **no licence**. `sol.ts` covers exactly those two states, and the buy box already says *minimum-viable set only*.
 
-That reframes the problem from *"does the match work"* to *"how do we reach scale without first proving the match works."* The cheapest route is probably to **service someone else's paper first** — no purchase cost, builds operating history, and generates the response data that answers U9 without owning anything.
+**What a viable pilot actually costs:**
+
+| Accounts | Face | Purchase @5.4¢ | + annual fixed | **Total capital** | Median clears |
+|---|---|---|---|---|---|
+| 1,000 | $661k | $35,671 | $11,175 | $46,846 | — |
+| 2,000 | $1.3M | $71,342 | $11,175 | **$82,517** | R=4 |
+| 5,000 | $3.3M | $178,354 | $11,175 | **$189,529** | R=3, R=4 |
+
+So the pilot that answers U9 empirically **is fundable** at roughly $83k–190k, not the ~$3.6M the incumbent model implied.
 
 Full detail: [`u9-stress.md`](docs/research/u9-stress.md) · [`u6-servicing.md`](docs/research/u6-servicing.md)
-Reproduce: `node core/simulation/stress/combined-report.ts`
+Reproduce: `node core/simulation/stress/scale-report.ts`
 
 **Next gate**: Debt-buyer licensing (30 states, 6-18 months, RMAI CRB)
 

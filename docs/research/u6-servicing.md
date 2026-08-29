@@ -1,7 +1,42 @@
 # U6 — Servicing Cost, Bottom-Up
 
 **Date:** 28 Aug 2026
-**Verdict: `SERVICING_BPS = 541` was wrong by 2.3–8.3× *and* expressed in the wrong unit. Correcting it makes H3 clear at R=3–4 — but moves the binding constraint to scale, and the scale required is far above any pilot this business can fund.**
+
+> ## ⚠️ CORRECTED WITHIN THE HOUR — the scale threshold below is wrong
+>
+> Ryan asked: **"why does it cost any money to maintain?"** The honest answer is
+> that most of what this document originally charged was an **incumbent's cost
+> structure**, imported into a business that is not an incumbent.
+>
+> | | Original (incumbent) | Corrected (lean) | Overstated by |
+> |---|---|---|---|
+> | Licensing | $21,000–75,000 (30 states) | **$375–1,425** (TX bond + NYC) | **15–50×** |
+> | Software | $4,788–59,988 (Katabat/Tratta) | **$800–1,200** (self-built on `core/`) | **6–60×** |
+> | Ops staff | $45,000–180,000 | **$0** (34 disputes/yr is not a headcount) | — |
+> | **Annual total** | **$95,788–434,988** | **$11,175–30,625** | **9–14×** |
+>
+> **What that does to the threshold:**
+>
+> | | Original | Corrected |
+> |---|---|---|
+> | Minimum viable scale | 25,000–100,000 accounts/yr | **~2,000–5,000** |
+> | Capital required | ~$3.6M | **$83k–190k** |
+>
+> **So the pilot that would answer U9 empirically IS fundable.** The strategic
+> conclusion drawn below — *"service someone else's paper because you cannot
+> afford to buy"* — came from an assumption, not from the business. It may still
+> be a good idea; it is no longer forced.
+>
+> Specifically: Texas requires a $10,000 bond (~$50–100/yr premium) and **no
+> licence**. New York State requires **no licence**; NYC charges $150 per two
+> years plus a $25k bond. `sol.ts` covers exactly those two states, and the buy
+> box says *"U4 minimum-viable licensing set only"* — so pricing 30 states
+> contradicted the repo's own strategy.
+>
+> Run `node core/simulation/stress/scale-report.ts` for the corrected figures.
+> Everything below the next heading retains the original incumbent framing.
+
+**Original verdict (before the lean correction): `SERVICING_BPS = 541` was wrong by 2.3–8.3× *and* expressed in the wrong unit. Correcting it makes H3 clear at R=3–4 — but moves the binding constraint to scale, and the scale required is far above any pilot this business can fund.**
 
 This **partly retracts** the same-day conclusion in [`u9-stress.md`](u9-stress.md) that "0% clears at every ratio." That result used the 541bps placeholder. See "What this does to U9" below.
 

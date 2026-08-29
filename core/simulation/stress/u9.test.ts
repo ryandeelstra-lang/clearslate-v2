@@ -11,7 +11,7 @@ import { generatePortfolio } from "../generators/portfolio.ts";
 import { runSimulation } from "../operational/simulate.ts";
 import { CONSUMER_BEHAVIOR } from "../calibration.ts";
 import { breakEvenBps, sweep, MARKET_REGIME } from "./u9.ts";
-import { servicingCost } from "./u6-servicing.ts";
+import { servicingCost, sumComponents, ANNUAL_FIXED, ANNUAL_FIXED_LEAN } from "./u6-servicing.ts";
 
 test("sigmoid point estimates stay inside their own stated ranges", () => {
   // The bug this pins: baseline_k was 1.5 against k_range [0.5, 1.2], and
@@ -85,10 +85,18 @@ test("the binding constraint is scale, not behaviour", () => {
   };
   const PRICE_BPS = 540;
 
-  const pilot = servicingCost({ ...shape, annualAccountVolume: 1_000 });
-  const atScale = servicingCost({ ...shape, annualAccountVolume: 100_000 });
+  const pilot = servicingCost({
+    ...shape,
+    annualAccountVolume: 1_000,
+    structure: "incumbent",
+  });
+  const atScale = servicingCost({
+    ...shape,
+    annualAccountVolume: 100_000,
+    structure: "incumbent",
+  });
 
-  // A 1,000-account pilot is hopeless before a single letter is mailed.
+  // A 1,000-account pilot is hopeless under an INCUMBENT cost structure.
   assert.ok(
     pilot.servicingBpsOfFace > 1_000,
     `pilot servicing is ${(pilot.servicingBpsOfFace / 100).toFixed(2)}¢; expected >10¢. ` +
@@ -118,6 +126,44 @@ test("the binding constraint is scale, not behaviour", () => {
   assert.ok(
     pilot.servicingBpsOfFace > atScale.servicingBpsOfFace * 10,
     "scale must dominate: pilot servicing should exceed at-scale by >10×",
+  );
+});
+
+test("a lean structure makes a pilot fundable — the incumbent assumption did not", () => {
+  // Pins the correction prompted by "why does it cost any money to maintain?".
+  // Pricing 30 state licences and a bought collections platform inflated the
+  // scale threshold by more than an order of magnitude. TX needs a $10k bond
+  // and no licence; NY State needs no licence; we are building the software.
+  const shape = {
+    avgBalanceDollars: 660.57,
+    paymentRate: 0.20,
+    avgPaymentDollars: 165,
+    bound: "low" as const,
+  };
+
+  const leanAnnual = sumComponents(ANNUAL_FIXED_LEAN, "low");
+  const incumbentAnnual = sumComponents(ANNUAL_FIXED, "low");
+  assert.ok(
+    incumbentAnnual > leanAnnual * 5,
+    `incumbent annual fixed (${incumbentAnnual}) should exceed lean (${leanAnnual}) by >5×`,
+  );
+
+  // At 5,000 accounts the lean bar must fall below the honest R=3 median.
+  const lean = servicingCost({ ...shape, annualAccountVolume: 5_000, structure: "lean" });
+  const bar = 540 + lean.servicingBpsOfFace;
+  assert.ok(
+    bar < 613,
+    `lean bar at 5k accounts is ${(bar / 100).toFixed(2)}¢; expected below the ~6.13¢ ` +
+      `honest R=3 median. If this rose, re-check ANNUAL_FIXED_LEAN.`,
+  );
+
+  // And the capital required must stay within reach of a founder-funded pilot.
+  const capital = 5_000 * 660.57 * 0.054 + leanAnnual;
+  assert.ok(
+    capital < 250_000,
+    `pilot capital is $${capital.toFixed(0)}; expected under $250k. The earlier ` +
+      `incumbent model implied ~$3.6M and drove a strategic conclusion that a ` +
+      `pilot was unaffordable.`,
   );
 });
 

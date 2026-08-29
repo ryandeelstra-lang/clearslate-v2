@@ -138,6 +138,93 @@ export const ANNUAL_FIXED: CostComponent[] = [
   },
 ];
 
+/**
+ * ⚠️ CORRECTED 28 Aug 2026, on the question "why does it cost any money to
+ * maintain?"
+ *
+ * ANNUAL_FIXED above prices an INCUMBENT: a licensed-in-30-states operator that
+ * buys a collections platform and employs compliance and ops staff. ClearSlate
+ * is none of those things, and pricing it as one inflated the scale threshold by
+ * more than an order of magnitude. Line by line, what the incumbent assumption
+ * cost us:
+ *
+ *  - Licensing. Priced at 30 states. The buy box says "U4 minimum-viable
+ *    licensing set only", and sol.ts covers exactly TWO states. Texas requires a
+ *    $10k bond (~$50–100/yr premium) and NO license. New York State requires no
+ *    license at all; NYC charges $150 per two years plus a $25k bond. Real
+ *    two-state cost is ~$375–1,425/yr, not $21,000–75,000. **15–50× overstated.**
+ *
+ *  - Software. Priced at Katabat/Tratta/Finvi. We are building it — core/
+ *    already holds the tape, SOL, segmentation and underwriting logic, and the
+ *    consumer surface is a Next.js app plus Stripe. Hosting, Postgres, an email
+ *    sender and a domain run ~$800–1,200/yr. **6–60× overstated.**
+ *
+ *  - Operations staff. At 1,000 accounts a 3.4% dispute rate is ~34 disputes a
+ *    year, roughly three a month. That is not a headcount. It is founder time —
+ *    a real opportunity cost, but not a cash cost, and this model is about cash.
+ *
+ *  - Compliance and legal. Predominantly one-time: get the validation notice and
+ *    the match copy right once. Ongoing need is renewals and the occasional
+ *    review, not a standing fractional officer.
+ *
+ * What survives, because it is genuinely irreducible:
+ *  - bonds and licences for the states you actually operate in
+ *  - RMAI membership and certification, which many SELLERS require before they
+ *    will transact with you at all
+ *  - insurance sellers commonly require in a purchase agreement
+ *  - enough outside counsel to review the letters that carry §1692e exposure
+ *  - accounting and tax
+ *
+ * The LEAN bound below is the honest floor for a founder-operated, two-state,
+ * self-built operation. It is NOT a claim that the incumbent bound is wrong for
+ * an incumbent — both are kept, because the gap between them IS the finding.
+ */
+export const ANNUAL_FIXED_LEAN: CostComponent[] = [
+  {
+    label: "Licensing + bonds (TX bond, NYC licence + bond)",
+    low: 375,
+    high: 1_425,
+    source: "TX: $10k bond @ $50–100/yr, no licence. NY State: none. NYC: $150/2yr + $25k bond",
+  },
+  {
+    label: "RMAI membership + business certification",
+    low: 2_500,
+    high: 5_000,
+    source: "Dues $995–1,250/yr; $275 application; business cert $1,500–3,500 by size",
+  },
+  {
+    label: "Infrastructure (hosting, Postgres, email, domain)",
+    low: 800,
+    high: 1_200,
+    source: "Vercel + managed Postgres + Resend + domain, self-built on core/",
+  },
+  {
+    label: "Outside counsel (letter review, renewals, as-needed)",
+    low: 5_000,
+    high: 15_000,
+    source: "ESTIMATE — not sourced. Front-loaded; §1692e review is the load-bearing part.",
+  },
+  {
+    label: "E&O / cyber insurance",
+    low: 1_500,
+    high: 5_000,
+    source: "ESTIMATE — not sourced. Commonly required by sellers in purchase agreements.",
+  },
+  {
+    label: "Accounting + tax",
+    low: 1_000,
+    high: 3_000,
+    source: "ESTIMATE — not sourced. Small-entity bookkeeping and filing.",
+  },
+  {
+    label: "Operations staff",
+    low: 0,
+    high: 0,
+    source: "Founder-operated at pilot scale. ~34 disputes/yr at 1,000 accounts. " +
+      "Real opportunity cost, but not a CASH cost — and this model prices cash.",
+  },
+];
+
 export type Bound = "low" | "high";
 
 export interface ServicingResult {
@@ -169,6 +256,9 @@ export function processingRate(bound: Bound, avgPaymentDollars: number): number 
   return achShare * achRate + (1 - achShare) * cardRate;
 }
 
+/** Which cost structure to price: a founder-run operation, or an incumbent. */
+export type Structure = "lean" | "incumbent";
+
 export interface ServicingInputs {
   /** Accounts serviced per YEAR. This is what annual fixed costs amortise over. */
   annualAccountVolume: number;
@@ -179,11 +269,16 @@ export interface ServicingInputs {
   /** Average payment made by a payer, dollars. */
   avgPaymentDollars: number;
   bound: Bound;
+  /** Defaults to "lean" — see the note above ANNUAL_FIXED_LEAN. */
+  structure?: Structure;
 }
 
 export function servicingCost(inp: ServicingInputs): ServicingResult {
   const perAccountFixed = sumComponents(PER_ACCOUNT_FIXED, inp.bound);
-  const annualFixed = sumComponents(ANNUAL_FIXED, inp.bound);
+  const annualFixed = sumComponents(
+    (inp.structure ?? "lean") === "lean" ? ANNUAL_FIXED_LEAN : ANNUAL_FIXED,
+    inp.bound,
+  );
   const annualFixedPerAccount = annualFixed / inp.annualAccountVolume;
 
   const rate = processingRate(inp.bound, inp.avgPaymentDollars);
@@ -210,6 +305,7 @@ export function minimumViableVolume(
   targetBps: number,
   inp: Omit<ServicingInputs, "annualAccountVolume">,
 ): number | null {
+  // eslint-disable-next-line no-unused-vars -- structure flows through inp
   const floor = servicingCost({ ...inp, annualAccountVolume: 100_000_000 });
   if (floor.servicingBpsOfFace > targetBps) return null;
 
