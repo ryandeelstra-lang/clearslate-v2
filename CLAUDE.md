@@ -56,7 +56,7 @@ Every digital-first collections operator optimizes *messages about a fixed balan
 - Balance: $200–$1,500, avg ≥$400
 - States: U4 minimum-viable licensing set only
 - SOL: Within SOL, ≥6 months headroom
-- **Contact: ≥60% with creditor-used email** (the gate — below this the business is one mailed letter)
+- **Contact: ≥60% with §1006.6(d)(4)-eligible email** (the gate). ⚠️ Restated 28 Aug 2026: this is **not** "creditor-used email." The safe harbor requires the *creditor* to have sent a compliant pre-transfer notice naming the address, with opt-out instructions and a 35-day window. Ask sellers for evidence it was sent. And note the business is **always** one mailed letter — the validation notice cannot go by email without E-SIGN consent that cannot exist pre-contact. See `docs/research/u6-servicing.md`.
 
 ## The `core/` modules
 
@@ -86,7 +86,9 @@ See `docs/decisions/v2-plan.md` and `docs/decisions/h3-ownership-as-product.md` 
 
 **Critical path:**
 - **U1** — Media rights specification (how many statements, format, warranty)
-- **U6** — Contact channel fill rate and fully-loaded servicing cost per account
+- ~~**U6** — fully-loaded servicing cost per account~~ **ANSWERED 28 Aug 2026.** `SERVICING_BPS = 541` was 2.3–8.3× too high for a digital operation *and* in the wrong unit (bps of face, when nearly every component is per-account or per-year). Bottom-up at scale it is 0.33–0.99¢, not 5.41¢. **This makes H3 clear at R=3–4 under honest untuned behavioural ranges.** But the binding constraint moved to **scale**: ~25k–100k accounts/year before fixed costs amortise, versus 14.68–66.18¢ of servicing at a 1,000-account pilot. See `docs/research/u6-servicing.md`.
+  - **Also found:** there is **no email-only path for first contact.** Reg F §1006.42(b) requires E-SIGN consent for an electronic validation notice, which cannot exist pre-contact. §1006.6(d)(4)'s email safe harbor is a *different* provision and requires the **creditor** to have sent a compliant pre-transfer notice with a 35-day opt-out. **The buy-box gate below should be restated in those terms** — "creditor-used email" is not the same thing, and diligence must ask for evidence the notice was sent.
+  - **Still open:** contact-channel fill rate, and two unsourced cost estimates (compliance, ops staffing) spanning $70k–300k/yr that drive the scale threshold.
 - **U7** — Does small-balance paper carry a litigation discount beyond cost? (Partial answer: JCAP says cost, not litigation)
 - **U10** — 1099-C exposure (cancellation-of-debt income)
 - **U11** — Does H3 make ClearSlate a "creditor" under Reg B? (Disparate impact exposure)

@@ -1,7 +1,34 @@
 # U9 Stress Test — Does the Match Lift Survive Its Own Uncertainty?
 
 **Date:** 28 Aug 2026
-**Verdict: No. The simulation cannot currently support H3, and the numbers this repo has been publishing came from parameters tuned to produce them.**
+
+> ## ⚠️ PARTLY SUPERSEDED THE SAME DAY — read this first
+>
+> The headline below — **"0% clears at every ratio"** — used `SERVICING_BPS =
+> 541`, giving an 11.07¢ bar. [`u6-servicing.md`](u6-servicing.md) then showed
+> that placeholder is **2.3–8.3× too high** for a digital operation *and* was
+> expressed in the wrong unit (bps of face, when nearly every component is
+> per-account or per-year).
+>
+> Rebuilt bottom-up at adequate scale the bar is **5.73–6.39¢**, and the honest
+> untuned medians at R=3–4 (**6.31¢ / 6.94¢**) **clear it.**
+>
+> **So H3 does not fail on behaviour.** The 0% figure was substantially an
+> artefact of an inflated cost placeholder inherited from a litigating
+> call-centre operator.
+>
+> **What still stands, unchanged:**
+> - Findings 1–2 — the parameters *were* tuned outside their stated ranges, and
+>   the 11.66¢ headline *was* a single lucky seed. Both remain retracted.
+> - Finding 4 — the sigmoid level defect is real and unfixed.
+> - The behavioural model remains unvalidated. U9 is still unanswered.
+>
+> **What changed:** the bar, not the behaviour. The binding constraint moved
+> from *"does the match lift enough"* to *"can we reach the scale at which fixed
+> costs amortise"* — roughly 25k–100k accounts/year. See
+> [`u6-servicing.md`](u6-servicing.md).
+
+**Original verdict (as written, before the U6 correction): No. The simulation cannot currently support H3, and the numbers this repo has been publishing came from parameters tuned to produce them.**
 
 ---
 

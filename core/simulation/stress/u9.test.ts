@@ -11,6 +11,7 @@ import { generatePortfolio } from "../generators/portfolio.ts";
 import { runSimulation } from "../operational/simulate.ts";
 import { CONSUMER_BEHAVIOR } from "../calibration.ts";
 import { breakEvenBps, sweep, MARKET_REGIME } from "./u9.ts";
+import { servicingCost } from "./u6-servicing.ts";
 
 test("sigmoid point estimates stay inside their own stated ranges", () => {
   // The bug this pins: baseline_k was 1.5 against k_range [0.5, 1.2], and
@@ -49,13 +50,13 @@ test("no single seed may be reported as the model's answer", () => {
   );
 });
 
-test("H3 does not clear break-even under the stated uncertainty", () => {
-  // ⚠️ THIS TEST PASSING IS BAD NEWS. It documents that the simulation, run
-  // honestly across its own stated parameter ranges, gives no support for H3.
+test("H3 does not clear against the SUPERSEDED 541bps servicing placeholder", () => {
+  // Retained as a regression on the old regime only. MARKET_REGIME still carries
+  // SERVICING_BPS = 541, which docs/research/u6-servicing.md showed is 2.3–8.3×
+  // too high for a digital operation and expressed in the wrong unit.
   //
-  // It is written this way deliberately: if a future change makes H3 clear,
-  // this test FAILS and forces someone to explain what changed and why — new
-  // evidence, or new tuning. Do not "fix" it by widening a range.
+  // So this test documents WHY the original "0% clears" verdict was reached, not
+  // whether H3 works. The live question is scale — see the next test.
   const results = sweep(H3_BASELINE, {
     trials: 12,
     matchRatios: [2, 3, 4],
@@ -65,10 +66,58 @@ test("H3 does not clear break-even under the stated uncertainty", () => {
   const best = results.reduce((a, b) => (b.clearRate > a.clearRate ? b : a));
   assert.ok(
     best.clearRate < 0.5,
-    `H3 now clears break-even in ${(best.clearRate * 100).toFixed(0)}% of trials at ` +
-      `R=${best.matchRatio}. That would be a REVERSAL of the 28 Aug 2026 finding. ` +
-      `Confirm it came from evidence (U9 field data) and not from re-tuning ` +
-      `calibration.ts, then update docs/research/u9-stress.md.`,
+    `Against the 541bps placeholder H3 now clears in ${(best.clearRate * 100).toFixed(0)}% ` +
+      `of trials at R=${best.matchRatio}. Confirm that came from evidence and not ` +
+      `from re-tuning calibration.ts.`,
+  );
+});
+
+test("the binding constraint is scale, not behaviour", () => {
+  // The finding that replaced "0% clears at every ratio". With servicing built
+  // bottom-up instead of inherited from a litigating call-centre operator, the
+  // honest untuned medians DO clear — but only once annual volume is large
+  // enough for fixed costs to amortise.
+  const shape = {
+    avgBalanceDollars: 660.57,
+    paymentRate: 0.20,
+    avgPaymentDollars: 165,
+    bound: "low" as const,
+  };
+  const PRICE_BPS = 540;
+
+  const pilot = servicingCost({ ...shape, annualAccountVolume: 1_000 });
+  const atScale = servicingCost({ ...shape, annualAccountVolume: 100_000 });
+
+  // A 1,000-account pilot is hopeless before a single letter is mailed.
+  assert.ok(
+    pilot.servicingBpsOfFace > 1_000,
+    `pilot servicing is ${(pilot.servicingBpsOfFace / 100).toFixed(2)}¢; expected >10¢. ` +
+      `If this dropped, re-check the annual-fixed components in u6-servicing.ts.`,
+  );
+
+  // At 100k/yr the bar drops below the honest median at R=3–4.
+  const barAtScale = PRICE_BPS + atScale.servicingBpsOfFace;
+  assert.ok(
+    barAtScale < 620,
+    `bar at 100k/yr is ${(barAtScale / 100).toFixed(2)}¢; expected <6.20¢`,
+  );
+
+  const results = sweep(H3_BASELINE, {
+    trials: 10,
+    matchRatios: [3, 4],
+    seed: "scale-regression",
+  });
+  const clearsAtScale = results.filter((r) => r.cashBpsMedian >= barAtScale);
+  assert.ok(
+    clearsAtScale.length > 0,
+    `No ratio's MEDIAN clears ${(barAtScale / 100).toFixed(2)}¢ at scale. That would ` +
+      `reverse docs/research/u6-servicing.md — update it before changing this test.`,
+  );
+
+  // And the ordering that matters: scale changes the answer by orders of magnitude.
+  assert.ok(
+    pilot.servicingBpsOfFace > atScale.servicingBpsOfFace * 10,
+    "scale must dominate: pilot servicing should exceed at-scale by >10×",
   );
 });
 

@@ -13,9 +13,26 @@ Two corrections on 28 Aug 2026 removed the case that had been claimed:
 - **Gross recovery.** The 22 Aug correction (16.8¢ → ~11¢) had landed in the docs but never in `portfolio.ts`, which kept defaulting to the retracted number. Now fixed, with no default at all — callers pass it explicitly. Consequence: a voluntary-only book covers neither purchase nor servicing (max affordable price **2.43¢**, or **0.06¢** under the verified legal share, against a **5.4¢** market).
 - **The match lift.** The response-model parameters had been tuned *outside their own stated uncertainty ranges*, in the flattering direction, and the published figure was a single seed. Swept honestly, **P(clears break-even) is 0.0% at every ratio.**
 
-This does not prove H3 fails — the behavioural model has never met a real response. It proves the simulation cannot be used to argue H3 works. **U9 is the gating unknown, and answering it costs the price of a portfolio.**
+Then a third correction partly reversed the second:
 
-Full detail: [`docs/research/u9-stress.md`](docs/research/u9-stress.md) · reproduce with `node core/simulation/stress/u9-report.ts`
+- **Servicing cost (U6).** `SERVICING_BPS = 541` was labelled in the code as *"a PLACEHOLDER pending U6. It is not an observed figure."* It is **2.3–8.3× too high** for a digital operation — it came from a buyer that runs call centres and litigates — *and* it was in the wrong unit. Built bottom-up, servicing at scale is **0.33–0.99¢**, not 5.41¢.
+
+**With that corrected, H3 clears at R=3–4 under honest untuned parameters.** H3 does not fail on behaviour; it failed on an inherited cost placeholder.
+
+**But the binding constraint moved to scale.** Annual fixed costs (software, ~30 state licences, compliance, staffing) amortise over volume:
+
+| Annual accounts | Servicing | Verdict |
+|---|---|---|
+| 1,000 | 14.68–66.18¢ | hopeless at any ratio |
+| 25,000 | 0.76–2.97¢ | clears at the low bound |
+| 100,000 | 0.33–0.99¢ | clears |
+
+**The pilot that would answer U9 empirically is exactly what the economics cannot support.** A 1,000-account test costs ~$36k to buy and carries $96k–$437k of annual fixed cost. Reaching 100k accounts/year means ~$66M of face and ~$3.6M of purchase capital.
+
+That reframes the problem from *"does the match work"* to *"how do we reach scale without first proving the match works."* The cheapest route is probably to **service someone else's paper first** — no purchase cost, builds operating history, and generates the response data that answers U9 without owning anything.
+
+Full detail: [`u9-stress.md`](docs/research/u9-stress.md) · [`u6-servicing.md`](docs/research/u6-servicing.md)
+Reproduce: `node core/simulation/stress/combined-report.ts`
 
 **Next gate**: Debt-buyer licensing (30 states, 6-18 months, RMAI CRB)
 
