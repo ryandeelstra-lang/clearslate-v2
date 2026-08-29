@@ -486,6 +486,56 @@ Recorded rather than silently amended, per project rules.
     direction survives via Fernandes, Lynch & Netemeyer (2014), who recommend
     just-in-time guidance over curricula; **the 3× magnitude has no source.**
     See `docs/research/u14-rehabilitation.md` §8.
+14. **`GROSS_RECOVERY_BPS = 1680` was still the live default six days after
+    correction 12 said it was wrong.** Correction 12 (22 Aug) established the
+    constant overstates recovery by ~30–46%. It was recorded in the docs and in
+    `simulation/calibration.ts` (`gross_all_channel: 11.5`) — but
+    `portfolio.ts` still exported 1680 and still **defaulted to it**, and both
+    `underwrite.ts` and `segment.ts` imported it. Every ceiling printed between
+    the two dates used the number the repo had already retracted. **A correction
+    that lands in prose but not in the code has not landed.** Fixed 28 Aug by
+    removing the default entirely rather than substituting 1150: correction 12
+    is explicit that 11–12¢ is sound as "1680 is too high" and NOT as a
+    replacement constant, because it multiplies a blended four-country price by
+    a US-only multiple. Callers now pass it explicitly, as they already must for
+    `legalShareBps`. Band constants (`GROSS_RECOVERY_BPS_JCAP_LOW`/`_HIGH`) are
+    reference points to choose from, not defaults to fall back on.
+15. **`maxPriceBps` rounded a CEILING, so it could quote a price above the
+    ceiling.** `Math.round((maxPriceCents * 10_000) / faceCents)` — on a value
+    that means "the most we can pay and still clear the hurdle." Rounding 5.9 up
+    to 6 tells a broker we can pay more than we can, i.e. we overpay. The
+    flattering direction. Invisible under 1680, where ceilings were large enough
+    that half a basis point was a crumb; it surfaced immediately once the
+    corrected recovery pushed `maxPriceBps` into single digits, where the same
+    rounding is a **1.6% overpay**. Now `Math.floor`. Found only because
+    correction 14 changed the regime — **a latent bug that needed a second,
+    unrelated fix to become observable.**
+
+---
+
+## The consequence of correction 14 (28 Aug 2026)
+
+Re-running `underwrite()` on a $1M face / 1,200-account tape at the corrected
+recovery, with the market at **5.4¢**:
+
+| Legal share | Voluntary baseline | Net of servicing | Max price we can pay |
+| --- | --- | --- | --- |
+| Plan, L=25% | 8.25¢ | 2.84¢ | **2.43¢** |
+| Verified, L=48.2% | 5.70¢ | 0.29¢ | **0.06¢** |
+
+**A voluntary-only book does not cover purchase plus servicing under either
+assumption.** Under 1680 it netted 7.19¢ / 3.29¢ and looked survivable; it is
+not. Pinned by a regression test in `portfolio.test.ts` ("voluntary baseline
+alone does not cover purchase + servicing") which is written to FAIL if this
+ever silently reverses.
+
+This does not kill H3, but it removes all margin from underneath it. **H3 is now
+entirely dependent on the match mechanic, not merely improved by it.** The
+simulation — which builds cash bottom-up from behaviour and never reads
+`GROSS_RECOVERY_BPS`, so it is an independent estimate — puts R=2 at 11.66¢
+against a 5.70¢ voluntary baseline, i.e. the match roughly doubles voluntary
+cash. That doubling is the whole business, and it is exactly **U9**, still
+unfilled. If U9 comes back null there is no price at which this book works.
 
 ---
 

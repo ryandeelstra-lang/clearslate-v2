@@ -6,8 +6,42 @@
 // rather than "cents per dollar" because the servicing figure (5.41¢) is not a
 // whole number of cents, and a float there would leak into every downstream sum.
 
-// Industry gross recovery per $1 of face, all channels: 7¢ price × 2.4 multiple.
-export const GROSS_RECOVERY_BPS = 1680;
+// ---------------------------------------------------------------------------
+// ⚠️ GROSS RECOVERY HAS NO DEFAULT. Corrected 28 Aug 2026.
+//
+// This module previously exported `GROSS_RECOVERY_BPS = 1680` (16.8¢ per $1 of
+// face) and defaulted to it. That number came from a 7¢ price × 2.4× multiple.
+// Both inputs are stale.
+//
+// Jefferson Capital's Q2 2026 10-Q — a buyer whose stated strategy IS small-
+// balance paper — reports H1 2026 purchases at 5.4% of face (down from 6.7%)
+// against US Distressed collection multiples of 2.0–2.3×. Implied all-channel
+// gross recovery is ≈11–12¢, roughly 30% below the old constant.
+//
+// `underwrite()` is LINEAR in gross recovery, so every price ceiling this repo
+// printed under 1680 was proportionally too generous — the flattering direction.
+//
+// WHY THERE IS NO REPLACEMENT CONSTANT. notes.md correction 12 and
+// u13-asset-class-selection.md §1(a) are explicit: 5.4¢ is JCAP's blended price
+// across four countries and two business lines, while 2.0–2.3× is US Distressed
+// only. Multiplying them mixes populations. The finding is sound as "1680 is too
+// high"; it is NOT sound as a replacement constant, and a US-only price is not
+// public. Hard-coding 1150 would swap one unsourced number for another and hide
+// that it was a choice.
+//
+// So callers pass it explicitly, exactly as they already must for
+// legalShareBps below. The band constants are reference points to choose from,
+// not defaults to fall back on.
+// ---------------------------------------------------------------------------
+
+/** Superseded. 7¢ × 2.4×, both inputs stale. Retained so old runs stay reproducible. */
+export const GROSS_RECOVERY_BPS_STALE_1680 = 1680;
+
+/** Low end of the JCAP-implied band (≈11¢). Population-mixed — see note above. */
+export const GROSS_RECOVERY_BPS_JCAP_LOW = 1100;
+
+/** High end of the JCAP-implied band (≈12¢). Population-mixed — see note above. */
+export const GROSS_RECOVERY_BPS_JCAP_HIGH = 1200;
 
 // Fully-loaded servicing stack per $1 of face, per v2-plan.md.
 // NOTE: this is a PLACEHOLDER pending U6. It is not an observed figure.
@@ -43,12 +77,16 @@ export const LEGAL_SHARE_BPS_VERIFIED = 4820;
 
 // Gross recovery available to a book that never litigates, per $1 of face.
 // legalShareBps is the fraction of collections forfeited by not suing.
+// grossRecoveryBps has NO DEFAULT — see the note at the top of this file.
 export function voluntaryBaselineBps(
   legalShareBps: number,
-  grossRecoveryBps = GROSS_RECOVERY_BPS,
+  grossRecoveryBps: number,
 ): number {
   if (legalShareBps < 0 || legalShareBps > 10_000) {
     throw new Error("legalShareBps must be between 0 and 10000");
+  }
+  if (!Number.isFinite(grossRecoveryBps) || grossRecoveryBps <= 0) {
+    throw new Error("grossRecoveryBps must be > 0 and passed explicitly");
   }
   return Math.round((grossRecoveryBps * (10_000 - legalShareBps)) / 10_000);
 }
@@ -329,7 +367,13 @@ export type UnderwriteInput = {
   priceBps: number;
   /** Share of collections forfeited by never litigating. NO DEFAULT — see note above. */
   legalShareBps: number;
-  grossRecoveryBps?: number;
+  /**
+   * All-channel gross recovery in bps of face. NO DEFAULT — see the note at the
+   * top of this file. underwrite() is linear in this, so a wrong value scales
+   * every ceiling proportionally. Choose from GROSS_RECOVERY_BPS_JCAP_LOW/HIGH
+   * or pass your own sourced figure.
+   */
+  grossRecoveryBps: number;
   /** Collection-proportional servicing, in bps of face. Excludes up-front costs. */
   servicingBps?: number;
   /**
@@ -410,10 +454,14 @@ export function stressTest(input: UnderwriteInput): Scenario[] {
     ["moderate substitution L=35%", 3_500],
     ["verified, no substitution L=48.2%", LEGAL_SHARE_BPS_VERIFIED],
   ];
+  // Sweeps the JCAP-implied band, plus a point BELOW it. The band itself mixes
+  // populations (blended price × US-only multiple), so the true uncertainty is
+  // wider than the band, not narrower. A sweep that only spans 1100–1200 would
+  // understate how little we know.
   const recoveries: Array<[string, number]> = [
-    ["recovery −25%", Math.round(GROSS_RECOVERY_BPS * 0.75)],
-    ["recovery base", GROSS_RECOVERY_BPS],
-    ["recovery +25%", Math.round(GROSS_RECOVERY_BPS * 1.25)],
+    ["recovery below band (8.25¢)", Math.round(GROSS_RECOVERY_BPS_JCAP_LOW * 0.75)],
+    ["JCAP band low (11¢)", GROSS_RECOVERY_BPS_JCAP_LOW],
+    ["JCAP band high (12¢)", GROSS_RECOVERY_BPS_JCAP_HIGH],
   ];
 
   const out: Scenario[] = [];
@@ -438,7 +486,7 @@ export function underwrite(input: UnderwriteInput): UnderwriteResult {
     faceCents,
     priceBps,
     legalShareBps,
-    grossRecoveryBps = GROSS_RECOVERY_BPS,
+    grossRecoveryBps,
     servicingBps = SERVICING_BPS,
     accounts,
     upfrontCentsPerAccount = UPFRONT_CENTS_PER_ACCOUNT,
@@ -566,7 +614,13 @@ export function underwrite(input: UnderwriteInput): UnderwriteResult {
     npvCents: npv,
     irrAnnualBps: irr,
     maxPriceCents,
-    maxPriceBps: Math.round((maxPriceCents * 10_000) / faceCents),
+    // FLOOR, not round. This is a CEILING — the most we can pay and still clear
+    // the hurdle — so rounding up quotes a broker a price above our true limit
+    // and we overpay. The flattering direction, again. Caught 28 Aug 2026 when
+    // the gross-recovery correction pushed maxPriceBps down to single digits,
+    // where rounding 5.9 up to 6 is a 1.6% overpay instead of a rounding crumb.
+    // Math.floor of a negative stays correctly negative for unacquirable tapes.
+    maxPriceBps: Math.floor((maxPriceCents * 10_000) / faceCents),
     clearsHurdle: purchasePriceCents <= maxPriceCents,
     unacquirableAtAnyPrice: maxPriceCents < 0,
   };

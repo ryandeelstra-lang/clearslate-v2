@@ -1,0 +1,57 @@
+{
+  "id": "ACCT00000001",
+  "firstName": "Ryan",
+  "lastName": "Deelstra",
+  "email": "deelstraryan@gmail.com",
+  "phone": "512-623-9209",
+  "originalCreditor": "Affirm",
+  "balanceCents": 87500,
+  "chargeoffDate": {
+    "y": 2025,
+    "m": 8,
+    "d": 28
+  },
+  "lastPaymentDate": {
+    "y": 2025,
+    "m": 2,
+    "d": 28
+  },
+  "matchRatio": 2,
+  "clearingAmountCents": 29167,
+  "offerExpiresDate": {
+    "y": 2026,
+    "m": 9,
+    "d": 18
+  },
+  "offerToken": "e39f780cae7bd7c0f5a1b8d7ad9fdbeb",
+  "status": "offer_sent",
+  "statusHistory": [
+    {
+      "timestamp": "2026-08-28T06:42:46.066Z",
+      "fromStatus": null,
+      "toStatus": "pending_contact",
+      "reason": "Account created in clearance workflow"
+    },
+    {
+      "timestamp": "2026-08-28T06:43:59.458Z",
+      "fromStatus": "pending_contact",
+      "toStatus": "offer_sent",
+      "reason": "Initial offer email sent"
+    }
+  ],
+  "emailsSent": [
+    {
+      "timestamp": "2026-08-28T06:43:59.454Z",
+      "emailType": "offer_initial",
+      "sent": true
+    }
+  ],
+  "lastContactDate": {
+    "y": 2026,
+    "m": 8,
+    "d": 28
+  },
+  "paymentMethod": null,
+  "paidCents": 0,
+  "clearedDate": null
+}

@@ -9,7 +9,8 @@ import { readFileSync } from "node:fs";
 
 import {
   DEFAULT_HORIZON_MONTHS,
-  GROSS_RECOVERY_BPS,
+  GROSS_RECOVERY_BPS_JCAP_LOW,
+  GROSS_RECOVERY_BPS_JCAP_HIGH,
   HURDLE_ANNUAL_BPS,
   LEGAL_SHARE_BPS_PLAN,
   LEGAL_SHARE_BPS_VERIFIED,
@@ -53,7 +54,11 @@ Optional  (--face path only, where marked *)
                             up-front servicing is per account, and its drag in
                             bps of face scales inversely with average balance
   --ratio <n>*              Match ratio R:1, to show the consumer's clearing payment
-  --gross-recovery-bps <n>  All-channel gross recovery      (default ${GROSS_RECOVERY_BPS})
+  --gross-recovery-bps <n>  All-channel gross recovery. REQUIRED — no default.
+                            underwrite() is linear in it, so a wrong value scales
+                            every ceiling. JCAP-implied band is
+                            ${GROSS_RECOVERY_BPS_JCAP_LOW}–${GROSS_RECOVERY_BPS_JCAP_HIGH};
+                            that band mixes populations, so widen it if unsure
   --servicing-bps <n>       Collection-proportional servicing (default ${SERVICING_BPS}, PLACEHOLDER pending U6)
   --upfront-cents <n>       Up-front servicing PER ACCOUNT, in cents (default ${UPFRONT_CENTS_PER_ACCOUNT}).
                             Validation notice + pre-contact scrubs, charged on
@@ -480,7 +485,7 @@ function runTape(args: Map<string, string>): number {
   const input = {
     priceBps: num(args, "price-bps"),
     legalShareBps: num(args, "legal-share-bps"),
-    grossRecoveryBps: num(args, "gross-recovery-bps", GROSS_RECOVERY_BPS),
+    grossRecoveryBps: num(args, "gross-recovery-bps"),
     servicingBps: num(args, "servicing-bps", SERVICING_BPS),
     upfrontCentsPerAccount: num(args, "upfront-cents", UPFRONT_CENTS_PER_ACCOUNT),
     horizonMonths: num(args, "horizon", DEFAULT_HORIZON_MONTHS),
@@ -637,9 +642,8 @@ function runTape(args: Map<string, string>): number {
   const supplied = (k: string) => args.has(k);
   say("  ASSUMED, NOT MEASURED: gross recovery is applied uniformly across bands");
   say(
-    supplied("gross-recovery-bps")
-      ? `  and across SOL status, at ${cpd(input.grossRecoveryBps)}/$1 — YOUR value, not the default.`
-      : `  and across SOL status, at ${cpd(input.grossRecoveryBps)}/$1 all-channel (the default).`,
+    `  and across SOL status, at ${cpd(input.grossRecoveryBps)}/$1 all-channel — a figure` +
+      ` you chose.`,
   );
   say("  No public source breaks recovery or price out by balance band");
   say("  (docs/research/u7-pricing.md, u8-litigation-economics.md). Per-band");
@@ -679,14 +683,8 @@ function runTape(args: Map<string, string>): number {
     // assumption sitting under the number you take into a negotiation.
     say("");
     say(`  ⚠ H1 SELECTS TIME-BARRED PAPER, PRICED AT A LITIGATING BOOK'S RECOVERY.`);
-    if (supplied("gross-recovery-bps")) {
-      say(`    ${cpd(input.grossRecoveryBps)}/$1 is YOUR figure, replacing a default of`);
-      say(`    ${cpd(GROSS_RECOVERY_BPS)}/$1 — an all-channel rate (portfolio.ts: 7c price x 2.4`);
-      say("    multiple) measured on portfolios that retained the option to sue.");
-    } else {
-      say(`    ${cpd(input.grossRecoveryBps)}/$1 is an all-channel figure (portfolio.ts: 7c price`);
-      say("    x 2.4 multiple) from portfolios that retained the option to sue.");
-    }
+    say(`    ${cpd(input.grossRecoveryBps)}/$1 is an all-channel rate, measured on`);
+    say("    portfolios that retained the option to sue.");
     say("    Paper that cannot be sued at all should not be assumed to recover at");
     say("    that rate.");
     say("    Lower --gross-recovery-bps deliberately, or treat this ceiling as an");
@@ -881,7 +879,7 @@ function main() {
     faceCents,
     priceBps: num(args, "price-bps"),
     legalShareBps: num(args, "legal-share-bps"),
-    grossRecoveryBps: num(args, "gross-recovery-bps", GROSS_RECOVERY_BPS),
+    grossRecoveryBps: num(args, "gross-recovery-bps"),
     servicingBps: num(args, "servicing-bps", SERVICING_BPS),
     accounts,
     upfrontCentsPerAccount: num(args, "upfront-cents", UPFRONT_CENTS_PER_ACCOUNT),

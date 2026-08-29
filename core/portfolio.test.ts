@@ -13,7 +13,7 @@ import {
   npvCents,
   stressTest,
   underwrite,
-  GROSS_RECOVERY_BPS,
+  GROSS_RECOVERY_BPS_JCAP_LOW,
   HURDLE_ANNUAL_BPS,
   LEGAL_SHARE_BPS_PLAN,
   LEGAL_SHARE_BPS_VERIFIED,
@@ -30,8 +30,16 @@ import {
 } from "./portfolio.ts";
 
 // Derived, not hardcoded — see the contradiction note in portfolio.ts.
-const BASELINE_PLAN = voluntaryBaselineBps(LEGAL_SHARE_BPS_PLAN); // 1260 bps
-const BASELINE_VERIFIED = voluntaryBaselineBps(LEGAL_SHARE_BPS_VERIFIED); // 870 bps
+// Gross recovery is now explicit (corrected 28 Aug 2026, was an implicit 1680).
+const GR = GROSS_RECOVERY_BPS_JCAP_LOW; // 1100 bps = 11¢
+
+// underwrite() requires grossRecoveryBps explicitly as of the 28 Aug 2026
+// correction. These fixtures predate that, so this helper supplies GR unless a
+// case overrides it — and several deliberately do, to test the bounds.
+const uw = (input: Record<string, unknown>) =>
+  underwrite({ grossRecoveryBps: GR, ...input } as Parameters<typeof underwrite>[0]);
+const BASELINE_PLAN = voluntaryBaselineBps(LEGAL_SHARE_BPS_PLAN, GR); // 825 bps
+const BASELINE_VERIFIED = voluntaryBaselineBps(LEGAL_SHARE_BPS_VERIFIED, GR); // 570 bps
 
 // The worked example from docs/decisions/h3-ownership-as-product.md.
 const FACE = 423_700; // $4,237.00
@@ -130,21 +138,64 @@ test("match beats baseline iff cash collected exceeds the baseline", () => {
 
 // The contradiction this model exists to keep visible.
 test("the two legal-share assumptions give materially different baselines", () => {
-  assert.equal(BASELINE_PLAN, 1260); // 16.8¢ × (1 − 0.25)
-  assert.equal(BASELINE_VERIFIED, 870); // 16.8¢ × (1 − 0.482)
-  // Net of servicing the gap is more than 2×, which is why no default is exported.
-  const netPlan = BASELINE_PLAN - SERVICING_BPS; // 719 bps
-  const netVerified = BASELINE_VERIFIED - SERVICING_BPS; // 329 bps
-  assert.equal(netPlan, 719);
-  assert.equal(netVerified, 329);
+  assert.equal(BASELINE_PLAN, 825); // 11¢ × (1 − 0.25)
+  assert.equal(BASELINE_VERIFIED, 570); // 11¢ × (1 − 0.482)
+  // Net of servicing the gap is far more than 2×, which is why no default is exported.
+  const netPlan = BASELINE_PLAN - SERVICING_BPS; // 284 bps
+  const netVerified = BASELINE_VERIFIED - SERVICING_BPS; // 29 bps
+  assert.equal(netPlan, 284);
+  assert.equal(netVerified, 29);
   assert.ok(netPlan > netVerified * 2, "the choice of legal share more than doubles net");
 });
 
+// ⚠️ THE FINDING THAT FELL OUT OF THE 28 Aug 2026 CORRECTION.
+//
+// Under 1680 this was survivable: a voluntary-only book netted 7.19¢ (plan) or
+// 3.29¢ (verified) per $1 of face before paying for the paper. At the corrected
+// ~11¢ it nets 2.84¢ or 0.29¢ — and market price is ~5.4¢.
+//
+// So the voluntary BASELINE alone does not cover purchase + servicing under
+// either legal-share assumption. That is not a bug in the model; it is the
+// actual economics, and it means H3 does not merely benefit from the match
+// mechanic — it is ENTIRELY dependent on it. Everything rests on U9: does the
+// match lift cash materially above the voluntary baseline? If it does not,
+// there is no business here at any price the market will clear.
+test("voluntary baseline alone does not cover purchase + servicing", () => {
+  const marketPriceBps = 540; // JCAP H1 2026 blended
+  for (const [label, baseline] of [
+    ["plan L=25%", BASELINE_PLAN],
+    ["verified L=48.2%", BASELINE_VERIFIED],
+  ] as const) {
+    const netOfServicing = baseline - SERVICING_BPS;
+    assert.ok(
+      netOfServicing < marketPriceBps,
+      `${label}: baseline net (${netOfServicing}bps) unexpectedly covers price ` +
+        `(${marketPriceBps}bps). If this now passes, re-check the correction — ` +
+        `it would mean the thesis no longer depends on the match.`,
+    );
+  }
+});
+
 test("voluntaryBaselineBps rejects impossible shares", () => {
-  assert.throws(() => voluntaryBaselineBps(-1));
-  assert.throws(() => voluntaryBaselineBps(10_001));
-  assert.equal(voluntaryBaselineBps(0), GROSS_RECOVERY_BPS); // litigate everything
-  assert.equal(voluntaryBaselineBps(10_000), 0); // legal is the only channel
+  assert.throws(() => voluntaryBaselineBps(-1, GROSS_RECOVERY_BPS_JCAP_LOW));
+  assert.throws(() => voluntaryBaselineBps(10_001, GROSS_RECOVERY_BPS_JCAP_LOW));
+  // litigate everything
+  assert.equal(
+    voluntaryBaselineBps(0, GROSS_RECOVERY_BPS_JCAP_LOW),
+    GROSS_RECOVERY_BPS_JCAP_LOW,
+  );
+  // legal is the only channel
+  assert.equal(voluntaryBaselineBps(10_000, GROSS_RECOVERY_BPS_JCAP_LOW), 0);
+});
+
+// Corrected 28 Aug 2026: gross recovery lost its default because uw()
+// is linear in it and 1680 overstated it by ~46%. A caller who forgets it must
+// fail loudly rather than silently inherit a number nobody chose.
+test("gross recovery must be passed explicitly — no silent default", () => {
+  assert.throws(
+    () => voluntaryBaselineBps(4_820, undefined as unknown as number),
+    /passed explicitly/,
+  );
 });
 
 test("decay schedule sums to exactly 10000 bps and declines", () => {
@@ -181,7 +232,7 @@ test("irr recovers a known rate", () => {
 });
 
 test("underwrite: max price is the decision output", () => {
-  const r = underwrite({
+  const r = uw({
     faceCents: 100_000_000, // $1,000,000 face
     accounts: 1_200, // avg $833
     priceBps: 500, // asking 5¢
@@ -196,16 +247,16 @@ test("underwrite: max price is the decision output", () => {
 
 test("underwrite: the verified legal share is harsher than the plan's", () => {
   const base = { faceCents: 100_000_000, accounts: 1_200, priceBps: 500 };
-  const plan = underwrite({ ...base, legalShareBps: LEGAL_SHARE_BPS_PLAN });
-  const verified = underwrite({ ...base, legalShareBps: LEGAL_SHARE_BPS_VERIFIED });
+  const plan = uw({ ...base, legalShareBps: LEGAL_SHARE_BPS_PLAN });
+  const verified = uw({ ...base, legalShareBps: LEGAL_SHARE_BPS_VERIFIED });
   assert.ok(verified.maxPriceBps < plan.maxPriceBps, "48.2% must permit a lower price than 25%");
   assert.ok(verified.expectedGrossBps < plan.expectedGrossBps);
 });
 
 test("underwrite: a free portfolio always clears, an absurd price never does", () => {
   const base = { faceCents: 100_000_000, accounts: 1_200, legalShareBps: LEGAL_SHARE_BPS_VERIFIED };
-  assert.equal(underwrite({ ...base, priceBps: 0 }).clearsHurdle, true);
-  assert.equal(underwrite({ ...base, priceBps: 10_000 }).clearsHurdle, false); // paying face
+  assert.equal(uw({ ...base, priceBps: 0 }).clearsHurdle, true);
+  assert.equal(uw({ ...base, priceBps: 10_000 }).clearsHurdle, false); // paying face
 });
 
 test("underwrite: a longer horizon at equal total collections is worth less", () => {
@@ -216,8 +267,8 @@ test("underwrite: a longer horizon at equal total collections is worth less", ()
     legalShareBps: LEGAL_SHARE_BPS_VERIFIED,
     retentionBps: 9_900, // slow decay, so horizon genuinely extends the tail
   };
-  const short = underwrite({ ...base, horizonMonths: 48 });
-  const long = underwrite({ ...base, horizonMonths: 180 });
+  const short = uw({ ...base, horizonMonths: 48 });
+  const long = uw({ ...base, horizonMonths: 180 });
   assert.equal(short.expectedGrossCents, long.expectedGrossCents, "same total collected");
   assert.ok(long.maxPriceCents < short.maxPriceCents, "the same money later is worth less");
 });
@@ -230,15 +281,15 @@ test("underwrite: NPV is ~0 when priced exactly at maxPrice", () => {
     accounts: 1_200,
     legalShareBps: LEGAL_SHARE_BPS_VERIFIED,
   };
-  const r = underwrite({ ...base, priceBps: 500 });
-  const atMax = underwrite({ ...base, priceBps: r.maxPriceBps });
+  const r = uw({ ...base, priceBps: 500 });
+  const atMax = uw({ ...base, priceBps: r.maxPriceBps });
   // Within rounding of one bps of face on a $1M tape.
   assert.ok(
     Math.abs(atMax.npvCents) < 10_000,
     `NPV at maxPrice should be ~0, got ${atMax.npvCents}`,
   );
   assert.equal(atMax.clearsHurdle, true, "pricing at the ceiling must still clear");
-  assert.equal(underwrite({ ...base, priceBps: r.maxPriceBps + 25 }).clearsHurdle, false);
+  assert.equal(uw({ ...base, priceBps: r.maxPriceBps + 25 }).clearsHurdle, false);
 });
 
 // Up-front servicing is charged PER ACCOUNT, so its drag in bps of face scales
@@ -247,7 +298,7 @@ test("underwrite: NPV is ~0 when priced exactly at maxPrice", () => {
 test("up-front servicing punishes small balances", () => {
   const face = 100_000_000; // $1,000,000 held constant
   const drag = (accounts: number) =>
-    underwrite({
+    uw({
       faceCents: face,
       accounts,
       priceBps: 300,
@@ -268,11 +319,11 @@ test("up-front servicing punishes small balances", () => {
 test("underwrite refuses to silently ignore per-account cost", () => {
   // accounts omitted while upfront cost is non-zero => throw, never a quiet zero.
   assert.throws(
-    () => underwrite({ faceCents: 100_000_000, priceBps: 300, legalShareBps: 4_820 }),
+    () => uw({ faceCents: 100_000_000, priceBps: 300, legalShareBps: 4_820 }),
     /accounts is required/,
   );
   // Opting out explicitly is allowed.
-  const optedOut = underwrite({
+  const optedOut = uw({
     faceCents: 100_000_000,
     priceBps: 300,
     legalShareBps: 4_820,
@@ -280,7 +331,7 @@ test("underwrite refuses to silently ignore per-account cost", () => {
   });
   assert.equal(optedOut.upfrontServicingCents, 0);
   assert.throws(() =>
-    underwrite({ faceCents: 100_000_000, accounts: 0, priceBps: 300, legalShareBps: 4_820 }),
+    uw({ faceCents: 100_000_000, accounts: 0, priceBps: 300, legalShareBps: 4_820 }),
   );
 });
 
@@ -290,9 +341,10 @@ test("underwrite: up-front cost lowers what we can pay", () => {
     accounts: 2_500,
     priceBps: 300,
     legalShareBps: LEGAL_SHARE_BPS_VERIFIED,
+    grossRecoveryBps: GROSS_RECOVERY_BPS_JCAP_LOW,
   };
-  const withCost = underwrite(base);
-  const without = underwrite({ ...base, upfrontCentsPerAccount: 0 });
+  const withCost = uw(base);
+  const without = uw({ ...base, upfrontCentsPerAccount: 0 });
   assert.ok(
     withCost.maxPriceBps < without.maxPriceBps,
     "modelling up-front cost must reduce the ceiling, not raise it",
@@ -309,16 +361,17 @@ test("underwrite rejects recovery/price/servicing above 100% of face", () => {
     accounts: 1_200,
     priceBps: 300,
     legalShareBps: LEGAL_SHARE_BPS_VERIFIED,
+    grossRecoveryBps: GROSS_RECOVERY_BPS_JCAP_LOW,
   };
-  assert.throws(() => underwrite({ ...ok, grossRecoveryBps: 50_000 }), /<= 10000/);
-  assert.throws(() => underwrite({ ...ok, grossRecoveryBps: 10_001 }), /<= 10000/);
-  assert.throws(() => underwrite({ ...ok, priceBps: 10_001 }), /<= 10000/);
-  assert.throws(() => underwrite({ ...ok, servicingBps: 10_001 }), /<= 10000/);
-  assert.throws(() => underwrite({ ...ok, retentionBps: 10_000 }), /< 10000/);
-  assert.throws(() => underwrite({ ...ok, upfrontCentsPerAccount: 0.5 }), /integer/);
-  assert.throws(() => underwrite({ ...ok, horizonMonths: 48.5 }), /integer/);
+  assert.throws(() => uw({ ...ok, grossRecoveryBps: 50_000 }), /<= 10000/);
+  assert.throws(() => uw({ ...ok, grossRecoveryBps: 10_001 }), /<= 10000/);
+  assert.throws(() => uw({ ...ok, priceBps: 10_001 }), /<= 10000/);
+  assert.throws(() => uw({ ...ok, servicingBps: 10_001 }), /<= 10000/);
+  assert.throws(() => uw({ ...ok, retentionBps: 10_000 }), /< 10000/);
+  assert.throws(() => uw({ ...ok, upfrontCentsPerAccount: 0.5 }), /integer/);
+  assert.throws(() => uw({ ...ok, horizonMonths: 48.5 }), /integer/);
   // Sanity: we can never be told to pay more than face.
-  const r = underwrite({ ...ok, grossRecoveryBps: 10_000 });
+  const r = uw({ ...ok, grossRecoveryBps: 10_000 });
   assert.ok(r.maxPriceBps <= 10_000, "max price must never exceed face value");
 });
 
@@ -328,7 +381,7 @@ test("underwrite rejects recovery/price/servicing above 100% of face", () => {
 test("IRR never contradicts NPV, at any horizon", () => {
   for (const horizonMonths of [12, 48, 120, 180, 360]) {
     for (const priceBps of [50, 300, 900, 5_000]) {
-      const r = underwrite({
+      const r = uw({
         faceCents: 100_000_000,
         accounts: 1_200,
         priceBps,
@@ -355,7 +408,7 @@ test("IRR never contradicts NPV, at any horizon", () => {
 // is the bisection pinning to its own search ceiling, which the NPV/IRR
 // agreement invariant detects and a magnitude threshold does not.
 test("the 180-month IRR pathology stays fixed", () => {
-  const r = underwrite({
+  const r = uw({
     faceCents: 100_000_000,
     accounts: 1_200,
     priceBps: 900,
@@ -384,24 +437,25 @@ test("underwrite rejects inputs that would flatter a bad deal", () => {
     accounts: 1_200,
     priceBps: 300,
     legalShareBps: LEGAL_SHARE_BPS_VERIFIED,
+    grossRecoveryBps: GROSS_RECOVERY_BPS_JCAP_LOW,
   };
   // Negative costs read as revenue and inflate maxPrice.
-  assert.throws(() => underwrite({ ...ok, upfrontCentsPerAccount: -100 }), /must be >= 0/);
-  assert.throws(() => underwrite({ ...ok, servicingBps: -100 }), /must be >= 0/);
-  assert.throws(() => underwrite({ ...ok, hurdleAnnualBps: -1 }), /must be >= 0/);
+  assert.throws(() => uw({ ...ok, upfrontCentsPerAccount: -100 }), /must be >= 0/);
+  assert.throws(() => uw({ ...ok, servicingBps: -100 }), /must be >= 0/);
+  assert.throws(() => uw({ ...ok, hurdleAnnualBps: -1 }), /must be >= 0/);
   // Nonsense scalars.
-  assert.throws(() => underwrite({ ...ok, grossRecoveryBps: 0 }), /must be > 0/);
-  assert.throws(() => underwrite({ ...ok, horizonMonths: 0 }), /must be > 0/);
-  assert.throws(() => underwrite({ ...ok, retentionBps: 0 }), /must be > 0/);
-  assert.throws(() => underwrite({ ...ok, faceCents: NaN }), /must be > 0/);
+  assert.throws(() => uw({ ...ok, grossRecoveryBps: 0 }), /must be > 0/);
+  assert.throws(() => uw({ ...ok, horizonMonths: 0 }), /must be > 0/);
+  assert.throws(() => uw({ ...ok, retentionBps: 0 }), /must be > 0/);
+  assert.throws(() => uw({ ...ok, faceCents: NaN }), /must be > 0/);
   // You cannot mail half a validation notice.
-  assert.throws(() => underwrite({ ...ok, accounts: 1_200.7 }), /positive integer/);
-  assert.throws(() => underwrite({ ...ok, accounts: -5 }), /positive integer/);
+  assert.throws(() => uw({ ...ok, accounts: 1_200.7 }), /positive integer/);
+  assert.throws(() => uw({ ...ok, accounts: -5 }), /positive integer/);
 });
 
 test("a tape that loses money at zero price is flagged, not thrown", () => {
   // Tiny balances: per-account up-front cost swamps everything collectable.
-  const r = underwrite({
+  const r = uw({
     faceCents: 1_000_000, // $10,000 face
     accounts: 5_000, // avg $2.00 — absurd on purpose
     priceBps: 0,
@@ -413,7 +467,7 @@ test("a tape that loses money at zero price is flagged, not thrown", () => {
 });
 
 test("a healthy tape is not flagged unacquirable", () => {
-  const r = underwrite({
+  const r = uw({
     faceCents: 100_000_000,
     accounts: 400,
     priceBps: 100,
@@ -424,9 +478,9 @@ test("a healthy tape is not flagged unacquirable", () => {
 });
 
 test("underwrite rejects invalid input", () => {
-  assert.throws(() => underwrite({ faceCents: 0, priceBps: 500, legalShareBps: 4_820 }));
-  assert.throws(() => underwrite({ faceCents: 1_000, priceBps: -1, legalShareBps: 4_820 }));
-  assert.throws(() => underwrite({ faceCents: 1_000, priceBps: 500, legalShareBps: 10_001 }));
+  assert.throws(() => uw({ faceCents: 0, priceBps: 500, legalShareBps: 4_820 }));
+  assert.throws(() => uw({ faceCents: 1_000, priceBps: -1, legalShareBps: 4_820 }));
+  assert.throws(() => uw({ faceCents: 1_000, priceBps: 500, legalShareBps: 10_001 }));
 });
 
 test("no floats leak — every money value is an integer", () => {
@@ -537,22 +591,27 @@ test("CLI agrees with the API, and its exit code matches the verdict", async () 
     }
   };
 
+  // Uses the PLAN legal share, not the verified one. After the 28 Aug 2026
+  // gross-recovery correction the verified share leaves maxPriceBps at 6, so
+  // every candidate price fails and the "one clears, one doesn't" contrast this
+  // test exists for collapses. The plan share leaves a ceiling of ~243bps.
   for (const [priceBps, expectClears] of [[100, true], [900, false]] as const) {
     const args = [
       "--face", "1000000",
       "--accounts", "1200",
       "--price-bps", String(priceBps),
-      "--legal-share-bps", String(LEGAL_SHARE_BPS_VERIFIED),
+      "--legal-share-bps", String(LEGAL_SHARE_BPS_PLAN),
+      "--gross-recovery-bps", String(GR),
       "--json",
     ];
     const { code, stdout } = run(args);
     const parsed = JSON.parse(stdout);
 
-    const direct = underwrite({
+    const direct = uw({
       faceCents: 100_000_000,
       accounts: 1_200,
       priceBps,
-      legalShareBps: LEGAL_SHARE_BPS_VERIFIED,
+      legalShareBps: LEGAL_SHARE_BPS_PLAN,
     });
 
     assert.equal(parsed.result.maxPriceBps, direct.maxPriceBps, "CLI must not drift from the API");

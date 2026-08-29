@@ -4,6 +4,7 @@ import assert from "node:assert/strict";
 
 import {
   DEFAULT_HORIZON_MONTHS,
+  GROSS_RECOVERY_BPS_JCAP_LOW,
   LEGAL_SHARE_BPS_VERIFIED,
   UPFRONT_CENTS_PER_ACCOUNT,
   underwrite,
@@ -20,7 +21,31 @@ import { SOL_TABLE_VERIFIED, coveredStates as coveredStatesOf, type SolTable } f
 import { JURISDICTION_COUNT, buildTape, type TapeAccount, type Ymd } from "./tape.ts";
 
 const ASOF: Ymd = { y: 2026, m: 8, d: 26 };
-const INPUT = { priceBps: 200, legalShareBps: LEGAL_SHARE_BPS_VERIFIED };
+// grossRecoveryBps became required on 28 Aug 2026 — see the note at the top of
+// portfolio.ts. It is stated here rather than defaulted so these tests declare
+// the recovery assumption they run on.
+const INPUT = {
+  priceBps: 200,
+  legalShareBps: LEGAL_SHARE_BPS_VERIFIED,
+  grossRecoveryBps: GROSS_RECOVERY_BPS_JCAP_LOW,
+};
+
+/**
+ * A recovery regime in which the BLENDED verdict still clears.
+ *
+ * Several tests below exercise the central point of segmentation: "the blend
+ * looks fine, but a band inside it is worthless at any price." That phenomenon
+ * can only exist where the blend clears — `hiddenUnbuyable` is deliberately
+ * empty when `blended.unacquirableAtAnyPrice` is true, because then the problem
+ * is not hidden (segment.ts:312).
+ *
+ * At the corrected ~11¢ recovery the barbell fixture is unacquirable outright
+ * (maxPriceBps −114), so there is nothing left to hide and nothing to detect.
+ * 16.8¢ is the SUPERSEDED figure — used here purely as a parameter regime to
+ * keep the mechanism testable, never as a claim about the market. Tests that
+ * assert real-world economics use INPUT above.
+ */
+const INPUT_BLEND_CLEARS = { ...INPUT, grossRecoveryBps: 1_680 };
 
 function accounts(
   n: number,
@@ -115,17 +140,17 @@ test("underwrite() alone is structurally blind to mix", () => {
   const uniform = uniformLike(bar);
   // Same face, same count -> byte-identical blended verdict, despite completely
   // different tapes. This is the gap segmentation exists to close.
-  const x = underwrite({ ...INPUT, faceCents: bar.faceCents, accounts: bar.accountCount });
-  const y = underwrite({ ...INPUT, faceCents: uniform.faceCents, accounts: uniform.accountCount });
+  const x = underwrite({ ...INPUT_BLEND_CLEARS, faceCents: bar.faceCents, accounts: bar.accountCount });
+  const y = underwrite({ ...INPUT_BLEND_CLEARS, faceCents: uniform.faceCents, accounts: uniform.accountCount });
   assert.deepEqual(x, y, "the blended model cannot tell a barbell from a uniform tape");
   // And yet one of them has a band that is worthless at any price.
-  assert.ok(underwriteSegments(bar, INPUT).hiddenUnbuyable.length > 0);
-  assert.equal(underwriteSegments(uniform, INPUT).hiddenUnbuyable.length, 0);
+  assert.ok(underwriteSegments(bar, INPUT_BLEND_CLEARS).hiddenUnbuyable.length > 0);
+  assert.equal(underwriteSegments(uniform, INPUT_BLEND_CLEARS).hiddenUnbuyable.length, 0);
 });
 
 test("the blend hides an unbuyable sub-band", () => {
   const tape = barbell();
-  const r = underwriteSegments(tape, INPUT);
+  const r = underwriteSegments(tape, INPUT_BLEND_CLEARS);
   assert.equal(r.blended.unacquirableAtAnyPrice, false, "the blend looks fine");
   assert.ok(r.hiddenUnbuyable.length > 0, "but a band inside it is worthless at any price");
   const worst = r.hiddenUnbuyable[0];
@@ -142,7 +167,7 @@ test("summing band ceilings does not manufacture price out of rounding", () => {
   // The rounding budget is principled, not fitted: underwrite() rounds each
   // month's net inflow to a whole cent, so each extra segment can drift by at
   // most one cent per month of horizon.
-  const r = underwriteSegments(barbell(), INPUT);
+  const r = underwriteSegments(barbell(), INPUT_BLEND_CLEARS);
   const budget = r.segments.length * DEFAULT_HORIZON_MONTHS;
   assert.ok(
     Math.abs(r.linearityResidualCents) <= budget,
@@ -507,7 +532,13 @@ function withFlag(args: string[], key: string, value?: string): string[] {
   return value === undefined ? [...out, key] : [...out, key, value];
 }
 
-const BASE = [
+/**
+ * BASE without --gross-recovery-bps, for the few tests that supply their own.
+ * The CLI treats a repeated flag as an error rather than last-wins, so
+ * spreading BASE and appending the flag again crashes it — the parser behaving
+ * correctly, not a test bug.
+ */
+const BASE_NO_GR = [
   "--tape", "-",
   "--tape-declared-face", "5100.00",
   "--tape-declared-accounts", "2",
@@ -516,6 +547,24 @@ const BASE = [
   "--tape-as-of", "2026-08-26",
   "--legal-share-bps", String(LEGAL_SHARE_BPS_VERIFIED),
 ];
+
+const BASE = [
+  ...BASE_NO_GR,
+  "--gross-recovery-bps", String(GROSS_RECOVERY_BPS_JCAP_LOW),
+];
+
+/**
+ * CLI counterpart to INPUT_BLEND_CLEARS. Same reasoning: a handful of tests
+ * assert behaviour that only EXISTS when the blended verdict clears — "a
+ * worthless band survives the buy box", "the blend CLEARS while a band does
+ * not", "this band is subsidised by that one". At the corrected ~11¢ these
+ * fixtures are unacquirable outright, so there is no blend left to hide
+ * anything and the branch under test is unreachable.
+ *
+ * 1680 is the SUPERSEDED constant, used purely as a regime to keep those
+ * branches reachable. It is not a claim about the market.
+ */
+const GR_BLEND_CLEARS = ["--gross-recovery-bps", "1680"];
 
 test("CLI --tape agrees with the API", () => {
   const r = runCli([...BASE, "--price-bps", "200", "--segments", "--json"]);
@@ -527,7 +576,7 @@ test("CLI --tape agrees with the API", () => {
     ],
     { label: "-", asOf: ASOF },
   );
-  const api = underwriteSegments(tape, { priceBps: 200, legalShareBps: LEGAL_SHARE_BPS_VERIFIED });
+  const api = underwriteSegments(tape, INPUT);
   assert.equal(json.segmented.blended.maxPriceBps, api.blended.maxPriceBps);
   assert.equal(json.segmented.blended.clearsHurdle, api.blended.clearsHurdle);
   assert.equal(json.segmented.blended.npvCents, api.blended.npvCents);
@@ -636,6 +685,7 @@ test("CLI exit code: a worthless band survives the buy box", () => {
     "--tape-columns", COLS,
     "--tape-as-of", "2026-08-26",
     "--legal-share-bps", String(LEGAL_SHARE_BPS_VERIFIED),
+    ...GR_BLEND_CLEARS,
     "--price-bps", "200",
   ];
   const segs = runCli([...base, "--segments"], rows);
@@ -815,6 +865,7 @@ test("CLI says when the duplicate-account check did NOT run", () => {
     "--tape-date-format", "MM/DD/YYYY",
     "--tape-as-of", "2026-08-26",
     "--legal-share-bps", String(LEGAL_SHARE_BPS_VERIFIED),
+    "--gross-recovery-bps", String(GROSS_RECOVERY_BPS_JCAP_LOW),
     "--price-bps", "200",
   ];
   const withId = runCli([...base, "--tape-columns", COLS], dupes);
@@ -863,6 +914,7 @@ test("CLI surfaces SOL caveats instead of computing and discarding them", () => 
       "--tape-columns", COLS,
       "--tape-as-of", "2026-08-26",
       "--legal-share-bps", String(LEGAL_SHARE_BPS_VERIFIED),
+    "--gross-recovery-bps", String(GROSS_RECOVERY_BPS_JCAP_LOW),
       "--price-bps", "200",
       "--hypothesis", "h3",
     ],
@@ -890,6 +942,7 @@ test("CLI exit code: the buy box's unacquirable branch exits non-zero", () => {
     "--tape-columns", COLS,
     "--tape-as-of", "2026-08-26",
     "--legal-share-bps", String(LEGAL_SHARE_BPS_VERIFIED),
+    ...GR_BLEND_CLEARS,
     "--price-bps", "200",
   ];
   const plain = runCli(base, rows);
@@ -959,7 +1012,7 @@ test("CLI prints the barbell warning when mean and median diverge", () => {
     [
       "--tape", "-", "--tape-declared-face", "7000.00", "--tape-declared-accounts", "41",
       "--tape-date-format", "MM/DD/YYYY", "--tape-columns", COLS, "--tape-as-of", "2026-08-26",
-      "--legal-share-bps", String(LEGAL_SHARE_BPS_VERIFIED), "--price-bps", "200", "--segments",
+      "--legal-share-bps", String(LEGAL_SHARE_BPS_VERIFIED), "--gross-recovery-bps", String(GROSS_RECOVERY_BPS_JCAP_LOW), "--price-bps", "200", "--segments",
     ],
     rows,
   );
@@ -994,8 +1047,11 @@ test("--key=value and --key value agree across every numeric flag", () => {
     ["servicing-bps", "600"],
     ["upfront-cents", "250"],
   ] as const) {
-    const spaced = runCli([...BASE, "--price-bps", "200", "--segments", "--json", `--${k}`, v]);
-    const equals = runCli([...BASE, "--price-bps", "200", "--segments", "--json", `--${k}=${v}`]);
+    // gross-recovery-bps is already in BASE, and a repeated flag is a hard
+    // error, so that one iteration must start from the variant without it.
+    const b0 = k === "gross-recovery-bps" ? BASE_NO_GR : BASE;
+    const spaced = runCli([...b0, "--price-bps", "200", "--segments", "--json", `--${k}`, v]);
+    const equals = runCli([...b0, "--price-bps", "200", "--segments", "--json", `--${k}=${v}`]);
     const a = JSON.parse(spaced.stdout.slice(spaced.stdout.indexOf("{")));
     const b = JSON.parse(equals.stdout.slice(equals.stdout.indexOf("{")));
     assert.equal(a.segmented.blended.maxPriceBps, b.segmented.blended.maxPriceBps, `--${k}`);
@@ -1052,7 +1108,12 @@ test("the --face path refuses tape-only flags instead of dropping them", () => {
   // dropping them always resolved toward the flattering blended answer; and
   // --tape-declared-face gave someone who believed they were getting
   // reconciliation none at all.
-  const face = ["--face", "192196.97", "--price-bps", "200", "--legal-share-bps", String(LEGAL_SHARE_BPS_VERIFIED), "--accounts", "200"];
+  const face = [
+    "--face", "192196.97", "--price-bps", "200",
+    "--legal-share-bps", String(LEGAL_SHARE_BPS_VERIFIED),
+    "--gross-recovery-bps", String(GROSS_RECOVERY_BPS_JCAP_LOW),
+    "--accounts", "200",
+  ];
   for (const extra of [
     ["--hypothesis", "h3"],
     ["--segments"],
@@ -1159,22 +1220,26 @@ test("provenance claims are made only about values that ARE the default", () => 
   // "held fixed and undocumented", --servicing-bps 700 printed "is a
   // PLACEHOLDER pending U6". Attaching a sourced figure's pedigree to a number
   // someone typed is this module's own error, pointed the other way.
+  // Gross recovery is NOT in this list any more: as of 28 Aug 2026 it has no
+  // default at all, so there is no pedigree to misattribute. It is always the
+  // operator's number, and the CLI must say so — asserted below.
   const defaults = runCli([...BASE, "--price-bps", "200"]);
-  assert.match(defaults.stdout, /all-channel \(the default\)/);
+  assert.match(defaults.stdout, /all-channel — a figure you chose/);
   assert.match(defaults.stdout, /Retention 9000 \(default, undocumented\)/);
   assert.match(defaults.stdout, /servicing .* \(default, PLACEHOLDER pending U6\)/);
   assert.match(defaults.stdout, /up-front 175c\/account \(default, PLACEHOLDER pending U6\)/);
   assert.match(defaults.stdout, /weakest input in the model/);
 
   const overridden = runCli([
-    ...BASE, "--price-bps", "200",
+    ...BASE_NO_GR, "--price-bps", "200",
     "--gross-recovery-bps", "1200",
     "--retention-bps", "8500",
     "--servicing-bps", "700",
     "--upfront-cents", "250",
   ]);
-  assert.match(overridden.stdout, /YOUR value, not the default/);
-  assert.equal(/all-channel \(the default\)/.test(overridden.stdout), false);
+  // Whatever the operator passes, the claim is the same — it is their figure.
+  assert.match(overridden.stdout, /12\.00¢\/\$1 all-channel — a figure you chose/);
+  assert.equal(/the default\)/.test(overridden.stdout.split("Retention")[0]), false);
   assert.match(overridden.stdout, /Retention 8500 \(supplied by you\)/);
   assert.match(overridden.stdout, /servicing .* \(supplied by you\)/);
   assert.match(overridden.stdout, /up-front 250c\/account \(supplied by you\)/);
@@ -1186,23 +1251,20 @@ test("provenance claims are made only about values that ARE the default", () => 
   assert.equal(/weakest input in the model/.test(overridden.stdout), false);
 });
 
-test("the H1 recovery caveat reads as whole sentences in both branches", () => {
-  // This asserted only the FIRST line of each branch, so a garbled continuation
-  // survived it: the supplied branch dropped the "(portfolio.ts: 7c price x 2.4"
-  // fragment while the next line still began "multiple) from portfolios...",
-  // leaving an orphaned paren and a dangling "that rate".
-  const supplied = runCli([...BASE, "--price-bps", "200", "--hypothesis", "h1", "--gross-recovery-bps", "1200"]);
-  assert.match(supplied.stdout, /12\.00¢\/\$1 is YOUR figure, replacing a default of/);
-  assert.match(supplied.stdout, /16\.80¢\/\$1 — an all-channel rate \(portfolio\.ts: 7c price x 2\.4/);
-  assert.match(supplied.stdout, /multiple\) measured on portfolios that retained the option to sue\./);
+test("the H1 recovery caveat reads as whole sentences", () => {
+  // Was "in both branches". There is only ONE branch now: gross recovery lost
+  // its default on 28 Aug 2026, so the supplied-vs-default fork this test was
+  // built around no longer exists. The sentence-completeness check survives,
+  // because the original bug was a continuation line orphaned from its opener.
+  const supplied = runCli([...BASE_NO_GR, "--price-bps", "200", "--hypothesis", "h1", "--gross-recovery-bps", "1200"]);
+  assert.match(supplied.stdout, /12\.00¢\/\$1 is an all-channel rate, measured on/);
+  assert.match(supplied.stdout, /portfolios that retained the option to sue\./);
 
-  const dflt = runCli([...BASE, "--price-bps", "200", "--hypothesis", "h1"]);
-  assert.match(dflt.stdout, /16\.80¢\/\$1 is an all-channel figure \(portfolio\.ts: 7c price/);
-  assert.match(dflt.stdout, /x 2\.4 multiple\) from portfolios that retained the option to sue\./);
-  assert.equal(/YOUR figure/.test(dflt.stdout), false);
+  const other = runCli([...BASE, "--price-bps", "200", "--hypothesis", "h1"]);
+  assert.match(other.stdout, /11\.00¢\/\$1 is an all-channel rate, measured on/);
 
-  // Neither branch may leave an unmatched parenthesis in the printed block.
-  for (const out of [supplied.stdout, dflt.stdout]) {
+  // Neither run may leave an unmatched parenthesis in the printed block.
+  for (const out of [supplied.stdout, other.stdout]) {
     const block = out.slice(out.indexOf("H1 SELECTS TIME-BARRED"));
     const opens = (block.match(/\(/g) ?? []).length;
     const closes = (block.match(/\)/g) ?? []).length;
@@ -1253,7 +1315,7 @@ test("the worthless-band warning does not claim the blend clears when it does no
   const base = [
     "--tape", "-", "--tape-declared-face", "7000.00", "--tape-declared-accounts", "41",
     "--tape-date-format", "MM/DD/YYYY", "--tape-columns", COLS, "--tape-as-of", "2026-08-26",
-    "--legal-share-bps", String(LEGAL_SHARE_BPS_VERIFIED), "--segments",
+    "--legal-share-bps", String(LEGAL_SHARE_BPS_VERIFIED), ...GR_BLEND_CLEARS, "--segments",
   ];
   // A price high enough that the blend itself does not clear.
   const notClearing = runCli([...base, "--price-bps", "500"], rows);
@@ -1341,6 +1403,7 @@ test("a rejected row never echoes its cell value, even when that value is PII", 
     "--tape-date-format", "MM/DD/YYYY", "--tape-columns", COLS,
     "--tape-as-of", "2026-08-26", "--price-bps", "200",
     "--legal-share-bps", String(LEGAL_SHARE_BPS_VERIFIED),
+    "--gross-recovery-bps", String(GROSS_RECOVERY_BPS_JCAP_LOW),
   ], rows);
   assert.equal(r.code, 2);
   const all = r.stdout + (r.stderr ?? "");
@@ -1426,7 +1489,7 @@ test('"subsidised" is claimed when a band IS carrying another', () => {
   const r = runCli([
     "--tape", "-", "--tape-declared-face", face.toFixed(2), "--tape-declared-accounts", "45",
     "--tape-date-format", "MM/DD/YYYY", "--tape-columns", COLS, "--tape-as-of", "2026-08-26",
-    "--legal-share-bps", String(LEGAL_SHARE_BPS_VERIFIED), "--price-bps", "250", "--segments",
+    "--legal-share-bps", String(LEGAL_SHARE_BPS_VERIFIED), ...GR_BLEND_CLEARS, "--price-bps", "250", "--segments",
   ], rows);
   const bandLines = r.stdout.split("\n").filter((l) => /^\s+[<$]/.test(l));
   assert.ok(bandLines.length >= 2, "need at least two bands for one to carry the other");
@@ -1446,7 +1509,7 @@ test("all three duplicate-check scopes are distinguished, with the right remedy"
     runCli([
       "--tape", "-", "--tape-declared-face", "300.00", "--tape-declared-accounts", "3",
       "--tape-date-format", "MM/DD/YYYY", "--tape-columns", cols, "--tape-as-of", "2026-08-26",
-      "--legal-share-bps", String(LEGAL_SHARE_BPS_VERIFIED), "--price-bps", "200",
+      "--legal-share-bps", String(LEGAL_SHARE_BPS_VERIFIED), "--gross-recovery-bps", String(GROSS_RECOVERY_BPS_JCAP_LOW), "--price-bps", "200",
     ], rows);
 
   // (a) no id column mapped at all
@@ -1501,7 +1564,7 @@ test("a wholly unacquirable tape is named, not shown as a negative price", () =>
   const r = runCli([
     "--tape", "-", "--tape-declared-face", "50000.00", "--tape-declared-accounts", "1000",
     "--tape-date-format", "MM/DD/YYYY", "--tape-columns", COLS, "--tape-as-of", "2026-08-26",
-    "--legal-share-bps", String(LEGAL_SHARE_BPS_VERIFIED), "--price-bps", "200", "--segments",
+    "--legal-share-bps", String(LEGAL_SHARE_BPS_VERIFIED), "--gross-recovery-bps", String(GROSS_RECOVERY_BPS_JCAP_LOW), "--price-bps", "200", "--segments",
   ], rows);
   assert.match(r.stdout, /THE WHOLE TAPE IS UNACQUIRABLE AT ANY PRICE/);
   assert.match(r.stdout, /seller would have to pay/);

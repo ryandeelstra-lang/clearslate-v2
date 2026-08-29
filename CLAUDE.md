@@ -22,12 +22,16 @@ Every digital-first collections operator optimizes *messages about a fixed balan
 
 **Key insight:** A match ratio (pay $1, cancel $R of balance) costs only the forgiven face value, which we bought at ~5¢ per dollar. So a 3:1 match that lifts cash collections from 12.6¢ to 15¢ of face is profitable, even though it "gives away" 75% of the balance.
 
-**Why accounts closed, not dollars collected:** Three independent literatures converge on account *count* as the governing variable:
-- **Ong et al., *PNAS* 2019:** Each account cleared → +0.25 SD cognitive function, −11% anxiety, −10% present bias
+**Why accounts closed, not dollars collected:** Three literatures point at account *count* as the governing variable:
+- **Ong et al., *PNAS* 2019:** Each account cleared → +0.25 SD cognitive function, −11% anxiety, −10% present bias. **Caveat: n=196, quasi-experimental, and the beneficiaries were passive recipients of charity-funded relief.**
 - **Gal & McShane:** Proportion of accounts eliminated predicts staying debt-free better than dollars paid
 - **Mani et al., *Science* 2013:** The bandwidth mechanism — debt held as separate mental accounts
 
-Clearing accounts is itself the highest-evidence rehabilitation intervention available. It requires no behavior change, no curriculum, no daily engagement.
+**⚠️ CORRECTED 28 Aug 2026 — do not restate the old version of this claim.** This repo previously said "clearing accounts is itself the highest-evidence rehabilitation intervention available." That is false. **Kluender, Mahoney, Wong & Yin (2024, NBER w32315)** ran two RCTs relieving $169M of medical debt for **83,401 people** and found **no effect on mental health** (detrimental for some pre-registered subgroups), no effect on physical health or financial wellness, and *reduced* payment on remaining bills. It is 426× our prior evidence base and properly randomized. Anyone doing diligence finds it in four minutes.
+
+**What survives:** both Ong and Kluender tested *debt extinguished for you, by someone else, while you did nothing.* Neither tested what H3 proposes — **the person pays, with their own money, and the account closes as a result of their own action.** Effort justification, psychological ownership, and self-signaling all predict that earned closure and gifted closure are different objects. That prediction is **untested**, and our first portfolio is the experiment that tests it.
+
+**So the claim is: ClearSlate is in the agency-restoration business, not the debt-forgiveness business.** Forgiveness-as-gift has been tested at scale and does nothing. Never describe the match as forgiveness, relief, a gift, or charity — in copy or in decks. It is a purchase the person makes. See `docs/research/u15-opening-move.md` §1.
 
 **The ML problem:** The right match ratio is per-account. Deep ratios for accounts unlikely to pay anything; shallow for accounts likely to pay well regardless. This is a contextual bandit maximizing accounts cleared subject to cash ≥ break-even.
 
@@ -101,8 +105,18 @@ See `docs/decisions/v2-plan.md` and `docs/decisions/h3-ownership-as-product.md` 
 **Recent milestones:**
 - H3 hypothesis opened (21 Aug 2026) — replaces H1, mutually exclusive on paper selection
 - U13 asset class research (27 Aug 2026) — recommends fintech/BNPL, de-recommends medical
-- U14 rehabilitation research (27 Aug 2026) — financial literacy is null; clearing accounts is the intervention
+- U14 rehabilitation research (27 Aug 2026) — financial literacy is null; clearing accounts is the intervention. **Partly superseded by U15 — see the correction above.**
+- **U15 opening-move research (28 Aug 2026)** — leading with the discount is the wrong first contact (hits 4/4 FTC scam markers; anchors at our floor; aims a price lever at the 37.5% whose barrier is shame, not price). Contact 1 rewritten as legitimacy/recognition with no offer. Also surfaced the Kluender correction above.
 - Corrected gross recovery from 16.8¢ to ~11–12¢ (JCAP SEC filings)
+- **Gross recovery correction actually landed in the code (28 Aug 2026).** It had
+  been retracted in prose on 22 Aug but `portfolio.ts` still defaulted to 1680
+  for six more days, so every ceiling printed in between used the retracted
+  number. `grossRecoveryBps` now has **no default** — callers pass it, as they
+  already must for `legalShareBps`. Consequence: **a voluntary-only book covers
+  neither purchase nor servicing** (max price 2.43¢ at L=25%, 0.06¢ at L=48.2%,
+  against a 5.4¢ market). H3 is now entirely dependent on the match mechanic
+  rather than merely improved by it — which makes **U9 the single gating
+  unknown**. See `docs/research/notes.md` corrections 14–15.
 - Built `tape.ts`, `sol.ts`, `segment.ts`, `underwrite.ts`, `bridge.ts` with full test coverage
 
 **Next:**
